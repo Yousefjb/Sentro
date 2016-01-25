@@ -32,9 +32,53 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>SentroLogo.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="PcapDotNet.Base, Version=1.0.3.20967, Culture=neutral, PublicKeyToken=4b6f3e583145a652, processorArchitecture=MSIL">
+      <HintPath>..\packages\Pcap.Net.x86.1.0.3\lib\net40\PcapDotNet.Base.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="PcapDotNet.Core, Version=1.0.3.20978, Culture=neutral, PublicKeyToken=4b6f3e583145a652, processorArchitecture=x86">
+      <HintPath>..\packages\Pcap.Net.x86.1.0.3\lib\net40\PcapDotNet.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="PcapDotNet.Core.Extensions, Version=1.0.3.20980, Culture=neutral, PublicKeyToken=4b6f3e583145a652, processorArchitecture=x86">
+      <HintPath>..\packages\Pcap.Net.x86.1.0.3\lib\net40\PcapDotNet.Core.Extensions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="PcapDotNet.Packets, Version=1.0.3.20968, Culture=neutral, PublicKeyToken=4b6f3e583145a652, processorArchitecture=MSIL">
+      <HintPath>..\packages\Pcap.Net.x86.1.0.3\lib\net40\PcapDotNet.Packets.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -43,11 +87,31 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
+    <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
+    <Compile Include="Utilities\CommonRegex.cs" />
+    <Compile Include="Utilities\Extensions.cs" />
+    <Compile Include="Utilities\FileLogger.cs" />
+    <Compile Include="Utilities\ILogger.cs" />
+    <Compile Include="Utilities\ConsoleLogger.cs" />
+    <Compile Include="SingleGlobalInstance.cs" />
+    <Compile Include="Utilities\InputHandler.cs" />
+    <Compile Include="Utilities\NetworkUtilites.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities\VerbalExpressions.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="app.manifest" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="CacheManager\" />
+    <Folder Include="TrafficManager\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="SentroLogo.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
