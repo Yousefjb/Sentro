@@ -8,7 +8,7 @@ namespace Sentro.Utilities
     */
     class ConsoleLogger : ILogger
     {
-
+        public const string Tag = "ConsoleLogger";
         private static ConsoleLogger _consoleLogger;
 
         public static ConsoleLogger GetInstance()
@@ -20,10 +20,10 @@ namespace Sentro.Utilities
         {            
         }
 
-        public void Log(string message)
+        public void Log(string tag,string level,string message)
         {
-            Console.WriteLine("{0}:{1}:{2} {3}",
-                DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second, message);
+            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            Console.WriteLine("\n{0} [{1}] [{2}] {3}",time,level,tag,message);       
         }
 
         public void Log(LivePacketDevice networkInterface)

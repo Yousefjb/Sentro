@@ -13,6 +13,7 @@ namespace Sentro.Utilities
     /// </summary>
     public sealed class CommonRegex
     {
+        public const string Tag = "CommonRegex";
         #region regex used by sentro
         public const string Ip = @"((?:(?:1\d?\d|[1-9]?\d|2[0-4]\d|25[0-5])\.){3}(?:1\d?\d|[1-9]?\d|2[0-4]\d|25[0-5]))";
         #endregion 

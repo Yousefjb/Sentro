@@ -5,7 +5,8 @@ namespace Sentro.Utilities
 {
     class FileLogger : ILogger
     {
-        public void Log(string message)
+        public const string Tag = "FileLogger";
+        public void Log(string tag, string level, string message)
         {
             throw new NotImplementedException();
         }

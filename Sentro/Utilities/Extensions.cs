@@ -8,6 +8,7 @@ namespace Sentro.Utilities
 {
     static class Extensions
     {
+        public const string Tag = "Extensions";
         public static ReadOnlyCollection<byte> ToBytes(this MacAddress mac)
         {
             var hexValues = mac.ToString().Split(':');

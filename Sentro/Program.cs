@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using PcapDotNet.Base;
 using Sentro.ARPSpoofer;
@@ -13,21 +12,24 @@ namespace Sentro
     */
     public class Program
     {
+        public const string Tag = "Program";
         private static void Main(string[] args)
         {
             ILogger logger = ConsoleLogger.GetInstance();
-            Console.Title = "Sentro";                      
+            Console.Title = "Sentro";
+            Console.WriteLine(Sento);
+            MainPoint:
             try
             {
+                
                 using (new SingleGlobalInstance(1000))
                 {
                     _handler = ConsoleEventCallback;        //used to detect terminiation
                     SetConsoleCtrlHandler(_handler, true);  //using mutix and callbacks
-
-                    Console.WriteLine(Sento);
+     
                     string readLine;
                     do
-                    {
+                    {                       
                         readLine = ReadLineAsync().Result;
                         if(readLine.IsNullOrEmpty())
                             continue;
@@ -40,9 +42,9 @@ namespace Sentro
                                 break;
                             case "arp":
                                 Task.Run(() => InputHandler.Arp(readLine));
-                                break;
+                                break;                            
                             default:
-                                logger.Log($"{commands[0]} undefined");
+                                logger.Log(Tag,LogLevel.Info,$"{commands[0]} undefined");
                                 break;                                
                         }
 
@@ -51,7 +53,10 @@ namespace Sentro
             }
             catch (Exception e)
             {
-                logger.Log(e.Message);
+                //TODO: write try catch in each class insted of catching all here
+                logger.Log(Tag,LogLevel.Error,e.Message);
+                logger.Log(Tag,LogLevel.StackTrace,e.StackTrace);
+                goto MainPoint;
             }
          }
 
@@ -93,7 +98,7 @@ namespace Sentro
 ╚════██║██╔══╝  ██║╚██╗██║   ██║   ██╔══██╗██║   ██║
 ███████║███████╗██║ ╚████║   ██║   ██║  ██║╚██████╔╝
 ╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ 
-                                                    
+Transparent Cache Server For Small and Medium Networks                                                    
 ";
     }
 }

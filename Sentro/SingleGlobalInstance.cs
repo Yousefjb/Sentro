@@ -12,6 +12,7 @@ namespace Sentro
     */
     class SingleGlobalInstance : IDisposable
     {
+        public const string Tag = "SingleGlobalInstance";
         public bool HasHandle = false;
         Mutex _mutex;
 

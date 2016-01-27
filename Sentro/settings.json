@@ -1,0 +1,17 @@
+﻿{
+  "arpspoofer": {
+    "frequency": "30000"
+  },
+  
+  "settingsReloadRate": "60000",
+
+  "user": {
+    "interfaceIP": "192.168.1.11",
+    "targetAll": "false",
+    "targetIPs": [
+      "192.168.1.1",
+      "192.168.1.7"
+    ]
+  }
+
+}

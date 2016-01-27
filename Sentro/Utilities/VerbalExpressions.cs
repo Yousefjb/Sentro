@@ -24,6 +24,7 @@ namespace Sentro.Utilities
     */
     public class VerbalExpressions
     {
+        public const string Tag = "VerbalExpressions";
         #region Statics
 
         /// <summary>

@@ -13,6 +13,7 @@ namespace Sentro.Utilities
     */
     class InputHandler
     {
+        public const string Tag = "InputHandler";
         public static void Status(string commands)
         {
             var arp = ArpSpoofer.GetInstance();
@@ -74,19 +75,19 @@ namespace Sentro.Utilities
 
             #region expression evaluation against command 
             if (Regex.IsMatch(command, arpUsage))
-                logger.Log("spoofer usage");//spoofer.Usage();
+                spoofer.Usage();
 
             else if(Regex.IsMatch(command, arpPuase))
-                logger.Log("spoofer pause");//spoofer.Pause();
+                spoofer.Pause();
 
             else if (Regex.IsMatch(command, arpResume))
-                logger.Log("spoofer resume");//spoofer.Resume();
+                spoofer.Resume();
 
             else if(Regex.IsMatch(command, arpStart))
-                logger.Log("spoofer start");//spoofer.Start();
+                spoofer.Start();
 
             else if(Regex.IsMatch(command, arpStop))
-                logger.Log("spoofer stop");//spoofer.Stop();
+                spoofer.Stop();
 
             else if (Regex.IsMatch(command, arpIncludeExclude))
             {

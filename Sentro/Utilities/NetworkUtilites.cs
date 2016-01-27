@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.NetworkInformation;
-using System.Threading.Tasks;
 using PcapDotNet.Core;
 using PcapDotNet.Core.Extensions;
 
@@ -13,7 +11,8 @@ namespace Sentro.Utilities
         Responsipility : Provide general network functions
     */
     public class NetworkUtilites
-    { 
+    {
+        public const string Tag = "NetworkUtilites";
         
         public static void InsertStaticMac(NetworkInterface nic,string ipAddress,string macAddress)
         {            
@@ -58,7 +57,7 @@ namespace Sentro.Utilities
         /*http://stackoverflow.com/questions/12802888/get-a-machines-mac-address-on-the-local-network-from-its-ip-in-c-sharp*/
         public static string GetMacAddress(string ipAddress)
         {
-            Ping ping = new Ping();
+            Ping ping = new Ping();//Better to use arp request
             ping.Send(ipAddress);
             Process pProcess = new Process
             {

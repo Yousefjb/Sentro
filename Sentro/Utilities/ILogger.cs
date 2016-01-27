@@ -7,7 +7,7 @@ namespace Sentro.Utilities
     */
     interface ILogger
     {
-        void Log(string message);
+        void Log(string tag,string level,string message);
         void Log(LivePacketDevice networkInterface);
     }
 }
