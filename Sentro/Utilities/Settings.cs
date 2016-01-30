@@ -1,7 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -19,15 +17,16 @@ namespace Sentro.Utilities
         }
 
         private Settings()
-        {            
-            Task.Run(() =>
-            {
-                while (true)
-                {
-                    Reload();
-                    Thread.Sleep(Convert.ToInt32(Setting.settingsReloadRate));
-                }
-            });
+        {
+            Reload();
+            //Task.Run(() =>
+            //{
+            //    while (true)
+            //    {
+            //        Reload();
+            //        Thread.Sleep(Convert.ToInt32(Setting.settingsReloadRate));
+            //    }
+            //});
         }
 
         private void Reload()
@@ -40,8 +39,8 @@ namespace Sentro.Utilities
             }
             catch (Exception e)
             {
-                ConsoleLogger.GetInstance().Log(Tag, LogLevel.Error, e.Message);
-                ConsoleLogger.GetInstance().Log(Tag,LogLevel.Error,e.StackTrace);
+                ConsoleLogger.GetInstance().Error(Tag, e.Message);
+                ConsoleLogger.GetInstance().Error(Tag,e.StackTrace);
             }
         }
     }    

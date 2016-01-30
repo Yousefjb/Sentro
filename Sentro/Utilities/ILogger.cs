@@ -6,8 +6,10 @@ namespace Sentro.Utilities
         Responsipility : define named methods for logging information
     */
     interface ILogger
-    {
-        void Log(string tag,string level,string message);
+    {        
+        void Debug(string tag, string message);
+        void Info(string tag, string message);
+        void Error(string tag, string message);
         void Log(LivePacketDevice networkInterface);
     }
 }

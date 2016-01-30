@@ -17,7 +17,7 @@ namespace Sentro.Utilities
         public static void InsertStaticMac(NetworkInterface nic,string ipAddress,string macAddress)
         {            
             /*netish interface ip add neightbors "Network type" Ip mac*/
-            macAddress = macAddress.Replace(':', '-');
+            macAddress = macAddress.Replace(':', '-').ToLower();
             var networkName = nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet
                 ? "\"Local Area Connection\""
                 : "\"Wireless Network Connection\"";
@@ -26,13 +26,15 @@ namespace Sentro.Utilities
                 StartInfo =
                 {
                     FileName = "netsh",
-                    Arguments = "interface ip add neighbors "+ networkName + " " + ipAddress + " " + macAddress,
+                    Arguments = "interface ip add neighbors "+ networkName + " " + ipAddress + " " + macAddress,                   
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     CreateNoWindow = true
                 }
             };
-            pProcess.Start();            
+            pProcess.Start();     
+            
+            ConsoleLogger.GetInstance().Debug(Tag,$"tried to insert {ipAddress} with {macAddress}");       
         }
 
         public static void DeleteStaticMac(NetworkInterface nic,string ipAddress)
@@ -52,6 +54,7 @@ namespace Sentro.Utilities
                 }
             };
             pProcess.Start();
+            ConsoleLogger.GetInstance().Debug(Tag, $"tried to delete {ipAddress}");
         }
 
         /*http://stackoverflow.com/questions/12802888/get-a-machines-mac-address-on-the-local-network-from-its-ip-in-c-sharp*/
@@ -73,8 +76,16 @@ namespace Sentro.Utilities
             pProcess.Start();
             var strOutput = pProcess.StandardOutput.ReadToEnd();
             var substrings = strOutput.Split('-');
-            if (substrings.Length < 8) return "not found";
-            var macAddress = string.Format("{0}:{1}:{2}:{3}:{4}:{5}", substrings[3].Substring(Math.Max(0, substrings[3].Length - 2)), substrings[4], substrings[5], substrings[6], substrings[7], substrings[8].Substring(0, 2));
+            var macAddress="";
+
+            if (substrings.Length < 8)
+                macAddress = "";
+            else
+                macAddress = string.Format("{0}:{1}:{2}:{3}:{4}:{5}",
+                    substrings[3].Substring(Math.Max(0, substrings[3].Length - 2)), substrings[4], substrings[5],
+                    substrings[6], substrings[7], substrings[8].Substring(0, 2));
+
+            ConsoleLogger.GetInstance().Debug(Tag,$"{macAddress} belongs to this {ipAddress}");
             return macAddress;
         }
         
@@ -111,7 +122,9 @@ namespace Sentro.Utilities
         public static string GetGatewayIp(LivePacketDevice nic)
         {
             var gatewayIpAddressInformation = nic.GetNetworkInterface().GetIPProperties().GatewayAddresses.FirstOrDefault();
-            return gatewayIpAddressInformation?.Address.MapToIPv4().ToString() ?? "not found";
+            var result = gatewayIpAddressInformation?.Address.MapToIPv4().ToString() ?? "";
+            ConsoleLogger.GetInstance().Debug(Tag,result);
+            return result;
         }
 
         public static LivePacketDevice GetLivePacketDevice(string ip)

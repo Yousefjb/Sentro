@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using PcapDotNet.Base;
 using Sentro.ARPSpoofer;
@@ -12,7 +13,7 @@ namespace Sentro
     */
     public class Program
     {
-        public const string Tag = "Program";
+        public const string Tag = "Program";     
         private static void Main(string[] args)
         {
             ILogger logger = ConsoleLogger.GetInstance();
@@ -42,20 +43,24 @@ namespace Sentro
                                 break;
                             case "arp":
                                 Task.Run(() => InputHandler.Arp(readLine));
-                                break;                            
+                                break;
+                            case "exit":
+                                break;                           
                             default:
-                                logger.Log(Tag,LogLevel.Info,$"{commands[0]} undefined");
+                                logger.Info(Tag,$"{commands[0]} undefined");
                                 break;                                
                         }
 
-                    } while (!readLine.Equals("exit"));
+                    } while (readLine != null && !readLine.Equals("exit"));
+
+                    CleanUpSentro();
                 }
             }
             catch (Exception e)
             {
                 //TODO: write try catch in each class insted of catching all here
-                logger.Log(Tag,LogLevel.Error,e.Message);
-                logger.Log(Tag,LogLevel.StackTrace,e.StackTrace);
+                logger.Error(Tag,e.Message);
+                logger.Info(Tag,e.StackTrace);
                 goto MainPoint;
             }
          }
@@ -63,17 +68,7 @@ namespace Sentro
         #region Clean up before Sentro termination
         static bool ConsoleEventCallback(int eventType)
         {
-            if (eventType == 2)
-            {
-                var arp = ArpSpoofer.GetInstance();
-                var state = arp.State();
-
-                if (state == ArpSpoofer.Status.Started ||
-                    state == ArpSpoofer.Status.Starting ||
-                    state == ArpSpoofer.Status.Paused)
-                    ArpSpoofer.GetInstance().Stop();
-
-            }
+            CleanUpSentro();
             return false;
         }
 
@@ -84,6 +79,18 @@ namespace Sentro
         private static extern bool SetConsoleCtrlHandler(ConsoleEventDelegate callback, bool add);
         
         #endregion
+
+        private async static void CleanUpSentro()
+        {
+            ConsoleLogger.GetInstance().Debug(Tag,"stopping .. ");
+            var arp = ArpSpoofer.GetInstance();
+            var state = arp.State();
+
+            if (state == ArpSpoofer.Status.Started ||
+                state == ArpSpoofer.Status.Starting ||
+                state == ArpSpoofer.Status.Paused)
+                await Task.Run(()=>ArpSpoofer.GetInstance().Stop());
+        }
 
         private static async Task<string> ReadLineAsync()
         {

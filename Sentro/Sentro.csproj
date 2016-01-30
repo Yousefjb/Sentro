@@ -93,6 +93,7 @@
   <ItemGroup>
     <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
     <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
+    <Compile Include="TrafficManager\TrafficManager.cs" />
     <Compile Include="Utilities\CommonRegex.cs" />
     <Compile Include="Utilities\Extensions.cs" />
     <Compile Include="Utilities\FileLogger.cs" />
@@ -100,7 +101,6 @@
     <Compile Include="Utilities\ConsoleLogger.cs" />
     <Compile Include="SingleGlobalInstance.cs" />
     <Compile Include="Utilities\InputHandler.cs" />
-    <Compile Include="Utilities\LogLevel.cs" />
     <Compile Include="Utilities\NetworkUtilites.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -117,7 +117,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="CacheManager\" />
-    <Folder Include="TrafficManager\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="SentroLogo.ico" />

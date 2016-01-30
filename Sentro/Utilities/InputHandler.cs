@@ -71,7 +71,7 @@ namespace Sentro.Utilities
             #endregion
 
             ILogger logger = ConsoleLogger.GetInstance();
-            IArpSpoofer spoofer = ArpSpoofer.GetInstance();
+            IArpSpoofer spoofer = ArpSpoofer.GetInstance();                            
 
             #region expression evaluation against command 
             if (Regex.IsMatch(command, arpUsage))

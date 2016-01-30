@@ -22,8 +22,27 @@ namespace Sentro.Utilities
 
         public void Log(string tag,string level,string message)
         {
+              
+        }
+
+        public void Debug(string tag, string message)
+        {
+            #if DEBUG
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            Console.WriteLine("\n{0} [{1}] [{2}] {3}",time,level,tag,message);       
+            Console.WriteLine("\n{0} [DEBUG] [{1}] {2}\n", time, tag, message);
+            #endif
+        }
+
+        public void Info(string tag, string message)
+        {
+            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            Console.WriteLine("\n{0} [INFO] [{1}] {2}\n", time, tag, message);
+        }
+
+        public void Error(string tag, string message)
+        {
+            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            Console.WriteLine("\n{0} [ERROR] [{1}] {2}\n", time, tag, message);
         }
 
         public void Log(LivePacketDevice networkInterface)
