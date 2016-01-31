@@ -93,7 +93,6 @@
   <ItemGroup>
     <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
     <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
-    <Compile Include="CacheManager\senClass.cs" />
     <Compile Include="TrafficManager\TrafficManager.cs" />
     <Compile Include="Utilities\CommonRegex.cs" />
     <Compile Include="Utilities\Extensions.cs" />
@@ -116,7 +115,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="CacheManager\" />
+  </ItemGroup>
   <ItemGroup>
     <Content Include="SentroLogo.ico" />
   </ItemGroup>
