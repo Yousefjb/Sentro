@@ -86,25 +86,45 @@ namespace Sentro.TrafficManagment
                     logger.Info(Tag,$"Failed to receive packet with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
                     continue;
                 }
-                
 
-                Packet p = new Packet(buffer,DateTime.Now,DataLinkKind.IpV4);
-                var x1 = p.IsValid;                
 
-                diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
+                byte[] realBuffer = new byte[receiveLength];
+                Array.Copy(buffer, realBuffer, receiveLength);
 
-                Connection c = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort, ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
-                if (!divertDict.ContainsKey(c))
+                Packet p2 = new Packet(realBuffer, DateTime.Now, DataLinkKind.Ethernet);
+                var x = p2.Ethernet.IpV4.Tcp.Http;
+                if (x != null)
                 {
-                    TcpRecon tcpRecon = new TcpRecon();
-                    divertDict.Add(c, tcpRecon);
+                    //if (x.IsRequest)
+                    //    Console.WriteLine("Request");
+                    //else if (x.IsResponse)
+                    //    Console.WriteLine("Response");
+                    //else Console.WriteLine("I dont know :(");
+                    if (x.Header != null)
+                        Console.WriteLine(x.Header);
+                    if (x.Body != null)
+                        Console.WriteLine(x.Body);
+                }
+                else if (p2.IsValid)
+                {
+                    Console.WriteLine("p2 is valid " + p2);
                 }
 
-                divertDict[c].reassemble_tcp(tcpHeader.SequenceNumber, 0, buffer, (ulong)buffer.Length,
-                    tcpHeader.Syn != 0,
-                    Convert.ToUInt32(ipHeader.SourceAddress.GetAddressBytes()),
-                    Convert.ToUInt32(ipHeader.DestinationAddress.GetAddressBytes()),
-                    tcpHeader.SourcePort, tcpHeader.DestinationPort);
+
+                //diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
+
+                //Connection c = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort, ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
+                //if (!divertDict.ContainsKey(c))
+                //{
+                //    TcpRecon tcpRecon = new TcpRecon();
+                //    divertDict.Add(c, tcpRecon);
+                //}
+
+                //divertDict[c].reassemble_tcp(tcpHeader.SequenceNumber, 0, buffer, (ulong)buffer.Length,
+                //    tcpHeader.Syn != 0,
+                //    Convert.ToUInt32(ipHeader.SourceAddress.GetAddressBytes()),
+                //    Convert.ToUInt32(ipHeader.DestinationAddress.GetAddressBytes()),
+                //    tcpHeader.SourcePort, tcpHeader.DestinationPort);
 
 
 
