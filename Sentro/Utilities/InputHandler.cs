@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using PcapDotNet.Packets.IpV4;
 using Sentro.ARPSpoofer;
+using Sentro.TrafficManagment;
 
 namespace Sentro.Utilities
 {
@@ -11,9 +12,11 @@ namespace Sentro.Utilities
         Responsibility : Take input from user and convert it to command
 
     */
-    class InputHandler
+
+    internal class InputHandler
     {
         public const string Tag = "InputHandler";
+
         public static void Status(string commands)
         {
             var arp = ArpSpoofer.GetInstance();
@@ -36,16 +39,18 @@ namespace Sentro.Utilities
         arp pause
         arp resume
         arp stop
-        */      
+        */
+
         public static void Arp(string command)
         {
             //TODO: replace logging with real functions            
-            
+
             #region arp command regex expressions
+
             /*start with arp (then space then + or - followed by an ip) at least once */
             const string arpIncludeExclude =
                 @"^arp(?: (?:\+|\-)" + CommonRegex.Ip + @")+$";
-            
+
             /*start with arp then space then ip then space then spoof (then space then ip) at least once*/
             const string arpSpoofSet =
                 @"^arp " + CommonRegex.Ip + @" spoof(?: " + CommonRegex.Ip + @")+$";
@@ -68,25 +73,27 @@ namespace Sentro.Utilities
 
             /*start with arp then space then stop then end of line*/
             const string arpStop = @"^arp stop$";
+
             #endregion
 
             ILogger logger = ConsoleLogger.GetInstance();
-            IArpSpoofer spoofer = ArpSpoofer.GetInstance();                            
+            IArpSpoofer spoofer = ArpSpoofer.GetInstance();
 
             #region expression evaluation against command 
+
             if (Regex.IsMatch(command, arpUsage))
                 spoofer.Usage();
 
-            else if(Regex.IsMatch(command, arpPuase))
+            else if (Regex.IsMatch(command, arpPuase))
                 spoofer.Pause();
 
             else if (Regex.IsMatch(command, arpResume))
                 spoofer.Resume();
 
-            else if(Regex.IsMatch(command, arpStart))
+            else if (Regex.IsMatch(command, arpStart))
                 spoofer.Start();
 
-            else if(Regex.IsMatch(command, arpStop))
+            else if (Regex.IsMatch(command, arpStop))
                 spoofer.Stop();
 
             else if (Regex.IsMatch(command, arpIncludeExclude))
@@ -102,15 +109,15 @@ namespace Sentro.Utilities
                 {
                     //spoofer.Exclude(new IpV4Address(ip.Value));
                 }
-            }            
+            }
 
             else if (Regex.IsMatch(command, arpSpoofSet))
             {
                 var matches = Regex.Matches(command, CommonRegex.Ip);
                 var ips = (from Match ip in matches select ip.Value).ToList();
                 var myip = ips[0];
-                ips.RemoveAt(0);                
-                spoofer.Spoof(myip,new HashSet<string>(ips));
+                ips.RemoveAt(0);
+                spoofer.Spoof(myip, new HashSet<string>(ips));
             }
 
             else if (Regex.IsMatch(command, arpSpoofAll))
@@ -123,7 +130,17 @@ namespace Sentro.Utilities
                 //spoofer.Exclude(ips);
             }
 
-            #endregion   
+            #endregion
         }
+
+        public static void Traffic(string command)
+        {
+            if (command.Contains("start")) { 
+                 var x = TrafficManager.GetInstance();                
+            }
+            else if (command.Contains("stop"))
+                TrafficManager.GetInstance().Stop();
+        }
+
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Sentro.TrafficManager
+namespace Sentro.TrafficManagment
 {
     /* here we are going to try and reconstruct the data portion of a TCP
    session. We will try and handle duplicates, TCP fragments, and out

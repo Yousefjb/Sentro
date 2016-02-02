@@ -37,6 +37,7 @@
     <OutputPath>bin\x86\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
     <PlatformTarget>x86</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
@@ -93,9 +94,9 @@
   <ItemGroup>
     <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
     <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
-    <Compile Include="TrafficManager\Connection.cs" />
-    <Compile Include="TrafficManager\TcpRecon.cs" />
-    <Compile Include="TrafficManager\TrafficManager.cs" />
+    <Compile Include="TrafficManagment\Connection.cs" />
+    <Compile Include="TrafficManagment\TcpRecon.cs" />
+    <Compile Include="TrafficManagment\TrafficManager.cs" />
     <Compile Include="Utilities\CommonRegex.cs" />
     <Compile Include="Utilities\Extensions.cs" />
     <Compile Include="Utilities\FileLogger.cs" />
@@ -130,6 +131,10 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy /Y "$(ProjectDir)..\Divert.Net\Divert.Net\build\$(ConfigurationName) $(PlatformTarget)\*.dll" "$(TargetDir)"
+xcopy /Y "$(ProjectDir)..\Divert.Net\Divert.Net\build\$(ConfigurationName) $(PlatformTarget)\*.sys" "$(TargetDir)"</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

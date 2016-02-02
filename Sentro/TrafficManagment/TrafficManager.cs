@@ -2,28 +2,37 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Divert.Net;
+using PcapDotNet.Packets;
+using Sentro.Utilities;
 
-namespace Sentro.TrafficManager
+namespace Sentro.TrafficManagment
 {
     /*
         Responsipility : Sniff HTTP/S Request and Respons packets and take action
     */
-    class TrafficManager
+    public class TrafficManager
     {
         public const string Tag = "TrafficManager";
-        private TrafficManager _trafficManager;
+        private static TrafficManager _trafficManager;
         private bool running = true;
+        private ConsoleLogger logger;
 
         private TrafficManager()
         {
-            var divertForward = Task.Run(() => Divert(true));
-            var divertNetwork = Task.Run(() => Divert(false));
+            logger = ConsoleLogger.GetInstance();
+            //var divertForward = Task.Run(() => Divert(true));
+            //var divertNetwork = Task.Run(() => Divert(false));    
+            try
+            {
+                Divert(false);
+            }
+            catch (Exception e)
+            {
 
-            Task.WaitAll(divertNetwork, divertForward);
-
+            }
         }
 
-        public TrafficManager GetInstance()
+        public static TrafficManager GetInstance()
         {
             return _trafficManager ?? (_trafficManager = new TrafficManager());
         }
@@ -38,7 +47,8 @@ namespace Sentro.TrafficManager
             Dictionary<Connection, TcpRecon> divertDict = new Dictionary<Connection, TcpRecon>();
             Diversion diversion;
 
-            string filter = "tcp.PayloadLength > 0 and (tcp.DstPort == 80 or tcp.DstPort == 443 or tcp.SrcPort == 443 or tcp.SrcPort == 80)";
+            string filter = "tcp.PayloadLength > 0 and (tcp.DstPort == 80 or tcp.SrcPort == 80)";
+            //string filter = "tcp.PayloadLength > 0 and (tcp.DstPort == 80 or tcp.DstPort == 443 or tcp.SrcPort == 443 or tcp.SrcPort == 80)";
 
             try
             {
@@ -46,22 +56,18 @@ namespace Sentro.TrafficManager
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                logger.Error(Tag,e.Message);
                 return;
             }
 
             if (!diversion.Handle.Valid)
             {
-                Console.WriteLine("Failed to open divert handle with error {0}", System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+                logger.Info(Tag,$"Failed to open divert handle with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
                 return;
             }
 
-            IPHeader ipHeader = new IPHeader();
-            //IPv6Header ipv6Header = new IPv6Header();
-            //ICMPHeader icmpHeader = new ICMPHeader();
-            //ICMPv6Header icmpv6Header = new ICMPv6Header();
-            TCPHeader tcpHeader = new TCPHeader();
-            //UDPHeader udpHeader = new UDPHeader();
+            IPHeader ipHeader = new IPHeader();            
+            TCPHeader tcpHeader = new TCPHeader();            
 
             Address address = new Address();
 
@@ -77,9 +83,13 @@ namespace Sentro.TrafficManager
 
                 if (!diversion.Receive(buffer, address, ref receiveLength))
                 {
-                    Console.WriteLine("Failed to receive packet with error {0}", System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+                    logger.Info(Tag,$"Failed to receive packet with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
                     continue;
                 }
+                
+
+                Packet p = new Packet(buffer,DateTime.Now,DataLinkKind.IpV4);
+                var x1 = p.IsValid;                
 
                 diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
 

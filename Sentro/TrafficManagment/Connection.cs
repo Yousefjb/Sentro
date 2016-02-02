@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Sentro.TrafficManager
+namespace Sentro.TrafficManagment
 {
     class Connection
     {
