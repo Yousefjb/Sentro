@@ -20,6 +20,8 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
+Divert.Net/Divert.Net/[Bb]uild/
+Divert.Net/Divert.Net/[Ii]ntermediates/
 
 # Visual Studio 2015 cache/options directory
 .vs/

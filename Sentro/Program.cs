@@ -27,7 +27,8 @@ namespace Sentro
                 {
                     _handler = ConsoleEventCallback;        //used to detect terminiation
                     SetConsoleCtrlHandler(_handler, true);  //using mutix and callbacks
-     
+                    Console.CancelKeyPress += delegate { CleanUpSentro(); };
+
                     string readLine;
                     do
                     {                       

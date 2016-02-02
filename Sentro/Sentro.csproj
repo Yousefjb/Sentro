@@ -93,6 +93,8 @@
   <ItemGroup>
     <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
     <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
+    <Compile Include="TrafficManager\Connection.cs" />
+    <Compile Include="TrafficManager\TcpRecon.cs" />
     <Compile Include="TrafficManager\TrafficManager.cs" />
     <Compile Include="Utilities\CommonRegex.cs" />
     <Compile Include="Utilities\Extensions.cs" />
@@ -120,6 +122,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="SentroLogo.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Divert.Net\Divert.Net\Divert.Net.vcxproj">
+      <Project>{c0190c5b-2aae-4ec3-91d8-94e4aa18ed9c}</Project>
+      <Name>Divert.Net</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
