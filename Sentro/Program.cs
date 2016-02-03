@@ -6,9 +6,16 @@ namespace Sentro
     {
         static void Main(string[] args)
         {
-            string given_url = Console.ReadLine();
             Sentro.CacheManager.CacheManager obj = new CacheManager.CacheManager();
-            obj.normalize(given_url);
+            string given_url;
+            do
+            {
+                Console.Write("URL: ");
+                given_url = Console.ReadLine();
+                obj.normalize(given_url);
+
+            } while (given_url!="*");
+            
             
         }
     }
