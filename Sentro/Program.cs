@@ -46,7 +46,7 @@ namespace Sentro
                                 Task.Run(() => InputHandler.Arp(readLine));
                                 break;
                             case "tm":
-                                InputHandler.Traffic(readLine);
+                                Task.Run(() => InputHandler.Traffic(readLine));
                                 break;
                             case "exit":
                                 break;                           

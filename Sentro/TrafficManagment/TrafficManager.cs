@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Divert.Net;
-using PcapDotNet.Packets;
 using Sentro.Utilities;
 
 namespace Sentro.TrafficManagment
@@ -10,6 +11,7 @@ namespace Sentro.TrafficManagment
     /*
         Responsipility : Sniff HTTP/S Request and Respons packets and take action
     */
+
     public class TrafficManager
     {
         public const string Tag = "TrafficManager";
@@ -24,11 +26,12 @@ namespace Sentro.TrafficManagment
             //var divertNetwork = Task.Run(() => Divert(false));    
             try
             {
-                Divert(false);
+                Task.Run(() => Divert(false));
             }
             catch (Exception e)
             {
-
+                logger.Error(Tag, e.Message);
+                logger.Error(Tag, e.StackTrace);
             }
         }
 
@@ -42,6 +45,7 @@ namespace Sentro.TrafficManagment
             running = false;
         }
 
+
         private void Divert(bool forwardMode)
         {
             Dictionary<Connection, TcpRecon> divertDict = new Dictionary<Connection, TcpRecon>();
@@ -52,29 +56,33 @@ namespace Sentro.TrafficManagment
 
             try
             {
-                diversion = Diversion.Open(filter, forwardMode ? DivertLayer.NetworkForward : DivertLayer.Network, 100, 0);
+                diversion = Diversion.Open(filter, forwardMode ? DivertLayer.NetworkForward : DivertLayer.Network, 100,
+                    0);
             }
             catch (Exception e)
             {
-                logger.Error(Tag,e.Message);
+                logger.Error(Tag, e.Message);
                 return;
             }
 
             if (!diversion.Handle.Valid)
             {
-                logger.Info(Tag,$"Failed to open divert handle with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
+                logger.Info(Tag,
+                    $"Failed to open divert handle with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
                 return;
             }
-
-            IPHeader ipHeader = new IPHeader();            
-            TCPHeader tcpHeader = new TCPHeader();            
 
             Address address = new Address();
 
             byte[] buffer = new byte[65535];
 
-            uint receiveLength = 0;
-            uint sendLength = 0;
+            uint receiveLength, sendLength;
+            ulong index = 0;
+            FileStream file = new FileStream("sentro.txt", FileMode.Create);
+            string o;
+
+            IPHeader ipHeader = new IPHeader();
+            TCPHeader tcpHeader = new TCPHeader();
 
             while (running)
             {
@@ -83,97 +91,89 @@ namespace Sentro.TrafficManagment
 
                 if (!diversion.Receive(buffer, address, ref receiveLength))
                 {
-                    logger.Info(Tag,$"Failed to receive packet with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
+                    logger.Info(Tag,
+                        $"Failed to receive packet with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
                     continue;
                 }
 
 
-                byte[] realBuffer = new byte[receiveLength];
-                Array.Copy(buffer, realBuffer, receiveLength);
+                /*
+                if is outbound ie: request
+                    parse
+                    if available in cache
+                        make a proper response from cache
+                    else
+                        let it pass        
+                        put it in dictonary
 
-                Packet p2 = new Packet(realBuffer, DateTime.Now, DataLinkKind.Ethernet);
-                var x = p2.Ethernet.IpV4.Tcp.Http;
-                if (x != null)
+                    
+                else if inbound ie: response
+                    let it pass
+                    parse 
+                    send the request and response to cache
+                
+                */
+
+                if (address.Direction == DivertDirection.Inbound)
                 {
-                    //if (x.IsRequest)
-                    //    Console.WriteLine("Request");
-                    //else if (x.IsResponse)
-                    //    Console.WriteLine("Response");
-                    //else Console.WriteLine("I dont know :(");
-                    if (x.Header != null)
-                        Console.WriteLine(x.Header);
-                    if (x.Body != null)
-                        Console.WriteLine(x.Body);
+                    diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
+                    diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
+                    Connection c = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort,
+                        ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
+
+                    if (!divertDict.ContainsKey(c))
+                    {
+                        TcpRecon tcpRecon = new TcpRecon();
+                        divertDict.Add(c, tcpRecon);
+                    }
+
+                    divertDict[c].reassemble_tcp(tcpHeader.SequenceNumber, 0, buffer, (ulong) buffer.Length,
+                        tcpHeader.Syn != 0,
+                        Convert.ToUInt32(ipHeader.SourceAddress.GetAddressBytes()),
+                        Convert.ToUInt32(ipHeader.DestinationAddress.GetAddressBytes()),
+                        tcpHeader.SourcePort, tcpHeader.DestinationPort);
                 }
-                else if (p2.IsValid)
-                {
-                    Console.WriteLine("p2 is valid " + p2);
-                }
 
-
-                //diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
-
-                //Connection c = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort, ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
-                //if (!divertDict.ContainsKey(c))
-                //{
-                //    TcpRecon tcpRecon = new TcpRecon();
-                //    divertDict.Add(c, tcpRecon);
-                //}
-
-                //divertDict[c].reassemble_tcp(tcpHeader.SequenceNumber, 0, buffer, (ulong)buffer.Length,
-                //    tcpHeader.Syn != 0,
-                //    Convert.ToUInt32(ipHeader.SourceAddress.GetAddressBytes()),
-                //    Convert.ToUInt32(ipHeader.DestinationAddress.GetAddressBytes()),
-                //    tcpHeader.SourcePort, tcpHeader.DestinationPort);
-
-
-
-                //if (ipHeader.Valid && tcpHeader.Valid)
-                //{
-                //    Console.WriteLine(
-                //        "{0} IPv4 TCP packet captured destined for {1}:{2} from {3}:{4}.",
-                //        address.Direction == DivertDirection.Inbound ? "Inbound" : "Outbound",
-                //        ipHeader.DestinationAddress, tcpHeader.DestinationPort,
-                //        ipHeader.SourceAddress, tcpHeader.SourcePort
-                //        );
-                //}
-                //else if (ipHeader.Valid && udpHeader.Valid)
-                //{
-                //    Console.WriteLine(
-                //        "{0} IPv4 UDP packet captured destined for {1}:{2} from {3}:{4}.",
-                //        address.Direction == DivertDirection.Inbound ? "Inbound" : "Outbound",
-                //        ipHeader.DestinationAddress, tcpHeader.DestinationPort,
-                //        ipHeader.SourceAddress, tcpHeader.SourcePort
-                //        );
-                //}
-                //else if (ipv6Header.Valid && tcpHeader.Valid)
-                //{
-                //    Console.WriteLine(
-                //        "{0} IPv6 TCP packet captured destined for {1}:{2} from {3}:{4}.",
-                //        address.Direction == DivertDirection.Inbound ? "Inbound" : "Outbound",
-                //        ipHeader.DestinationAddress, tcpHeader.DestinationPort,
-                //        ipHeader.SourceAddress, tcpHeader.SourcePort
-                //        );
-                //}
-                //else if (ipv6Header.Valid && udpHeader.Valid)
-                //{
-                //    Console.WriteLine(
-                //        "{0} IPv6 UDP packet captured destined for {1}:{2} from {3}:{4}.",
-                //        address.Direction == DivertDirection.Inbound ? "Inbound" : "Outbound",
-                //        ipHeader.DestinationAddress, tcpHeader.DestinationPort,
-                //        ipHeader.SourceAddress, tcpHeader.SourcePort
-                //        );
-                //}
-
-                if (address.Direction == DivertDirection.Outbound)
+                else if (address.Direction == DivertDirection.Outbound)
                 {
                     diversion.CalculateChecksums(buffer, receiveLength, 0);
+                    diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
+                    diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
                 }
 
-                diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
+
+                //asyncParseAndLog(receiveLength,file,diversion,buffer,ipHeader,tcpHeader);               
             }
 
             diversion.Close();
+        }
+
+        private async void asyncParseAndLog(uint receiveLength, FileStream file, Diversion diversion, byte[] buffer,
+            IPHeader ipHeader, TCPHeader tcpHeader)
+        {
+            await Task.Run(() =>
+            {
+                diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
+                var start = ipHeader.HeaderLength + tcpHeader.HeaderLength;
+                var count = receiveLength - start;
+                Log("tcp header length : " + tcpHeader.HeaderLength + " \n ip header length : " + ipHeader.HeaderLength,file);
+                Log($"ip : {ipHeader.SourceAddress} -> {ipHeader.DestinationAddress} \n port : {tcpHeader.SourcePort} -> {tcpHeader.DestinationPort}",file);
+                Log(buffer, start, (int) count, file);
+            });
+        }
+
+        private void Log(string o, FileStream file)
+        {
+            //Console.WriteLine(o);
+            o = o + "\n";
+            var bytes = Encoding.ASCII.GetBytes(o);
+            file.Write(bytes, 0, bytes.Length);
+        }
+
+        private void Log(byte[] o, int start, int count, FileStream file)
+        {
+            //Console.WriteLine(o);                        
+            file.Write(o, start, count);
         }
     }
 }

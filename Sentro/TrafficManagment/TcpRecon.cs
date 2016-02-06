@@ -32,7 +32,7 @@ namespace Sentro.TrafficManagment
         uint[] tcp_port = new uint[2];
         uint[] bytes_written = new uint[2];
         //System.IO.FileStream data_out_file = null;
-        bool incomplete_tcp_stream = false;
+        bool incomplete_tcp_stream = false;        
         bool closed = false;
 
         public bool IncompleteStream
