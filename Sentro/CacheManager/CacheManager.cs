@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Web; // new
+using System.Net; // new
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,39 +15,54 @@ namespace Sentro.CacheManager
         }
         public int normalize(string url)
         {
-            /*
+            
             UriBuilder u = new UriBuilder(url);
-            Console.WriteLine(u.Uri.ToString());
-            */
-            
-            //
-            // Stage One
-            // 1. Converting the scheme and host to lower case
-            url = url.ToLower();
+            url = u.Uri.ToString();
+                        
+            // Removing directory index (index pages)
+            url = url.Replace("Default.asp", "");
+            url = url.Replace("index.php", "");
+            url = url.Replace("index.html", "");
+            url = url.Replace("index.htm", "");
+            url = url.Replace("index.shtml", "");
+            url = url.Replace("default.htm", "");
+            url = url.Replace("default.html", "");
+            url = url.Replace("home.html", "");
+            url = url.Replace("home.htm", "");
+            url = url.Replace("Index.html", "");
+            url = url.Replace("Index.htm", "");
+            url = url.Replace("Index.php", "");
 
-            // 2. Capitalizing letters in escape sequences
-            char[] url_char_array = url.ToCharArray(); // convert string to array of charachters
-            for (int i = 0; i < url_char_array.Length; i++)
+            // Removing the fragment (#xxx)
+            int i = -1;
+            i = url.IndexOf("#");
+            if (i != -1)
+                url = url.Remove(i);
+
+            // Removing duplicated slashes (//)
+            url = url.Replace("//", "/");
+
+            // Removing (www)
+            url = url.Replace("www.", "");
+
+            // Sorting query parameters
+            string[] queryString = url.Substring(url.IndexOf('?')+1).Split('&');
+            Array.Sort(queryString);
+
+            StringBuilder builder = new StringBuilder();
+            builder.Append(url.Substring(0, url.IndexOf('?')+1));
+
+            foreach ( string value in queryString)
             {
-                char x = url_char_array[i];
-                if (x == '%')
-                {
-                    url_char_array[++i] = Char.ToUpper(x); // replace the char
-                    url_char_array[++i] = Char.ToUpper(x); 
-                }
+                builder.Append(value);
+                builder.Append('&');
             }
-            url = new string(url_char_array);
-
-            // 3. Decoding percent-encoded octets of unreserved characters
-            url = System.Net.WebUtility.UrlDecode(url);
-
+            builder.Remove(builder.Length - 1,1);
+            url = builder.ToString();
 
             
-
             // print the new url
-            Console.WriteLine(
-                "input: " + url +
-                "\noutput: " + url );
+            Console.WriteLine("\noutput: " + url );
            
             
             return 0; // 0 = no error ,else error code number
