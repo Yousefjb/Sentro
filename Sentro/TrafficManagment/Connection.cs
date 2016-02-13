@@ -3,37 +3,19 @@
 namespace Sentro.TrafficManagment
 {
     class Connection
-    {
-        private string m_srcIp;
-        public string SourceIp
-        {
-            get { return m_srcIp; }
-        }
+    {        
 
-        private ushort m_srcPort;
-        public ushort SourcePort
-        {
-            get { return m_srcPort; }
-        }
+        public string SourceIp { get; }        
+        public ushort SourcePort { get; }        
+        public string DestinationIp { get; }        
+        public ushort DestinationPort { get; }
 
-        private string m_dstIp;
-        public string DestinationIp
+        public Connection(string sourceIp, ushort sourcePort, string destinationIp, ushort destinationPort)
         {
-            get { return m_dstIp; }
-        }
-
-        private ushort m_dstPort;
-        public ushort DestinationPort
-        {
-            get { return m_dstPort; }
-        }
-
-        public Connection(string sourceIP, UInt16 sourcePort, string destinationIP, UInt16 destinationPort)
-        {
-            m_srcIp = sourceIP;
-            m_dstIp = destinationIP;
-            m_srcPort = sourcePort;
-            m_dstPort = destinationPort;
+            SourceIp = sourceIp;            
+            DestinationIp = destinationIp;
+            SourcePort = sourcePort;
+            DestinationPort = destinationPort;
         }
 
 
@@ -49,16 +31,16 @@ namespace Sentro.TrafficManagment
                 return false;
             Connection con = (Connection)obj;
 
-            bool result = ((con.SourceIp.Equals(m_srcIp)) && (con.SourcePort == m_srcPort) && (con.DestinationIp.Equals(m_dstIp)) && (con.DestinationPort == m_dstPort)) ||
-                ((con.SourceIp.Equals(m_dstIp)) && (con.SourcePort == m_dstPort) && (con.DestinationIp.Equals(m_srcIp)) && (con.DestinationPort == m_srcPort));
+            bool result = ((con.SourceIp.Equals(SourceIp)) && (con.SourcePort == SourcePort) && (con.DestinationIp.Equals(DestinationIp)) && (con.DestinationPort == DestinationPort)) ||
+                ((con.SourceIp.Equals(DestinationIp)) && (con.SourcePort == DestinationPort) && (con.DestinationIp.Equals(SourceIp)) && (con.DestinationPort == SourcePort));
 
             return result;
         }
 
         public override int GetHashCode()
         {
-            return ((m_srcIp.GetHashCode() ^ m_srcPort.GetHashCode()) as object).GetHashCode() ^
-                ((m_dstIp.GetHashCode() ^ m_dstPort.GetHashCode()) as object).GetHashCode();
+            return ((SourceIp.GetHashCode() ^ SourceIp.GetHashCode()) as object).GetHashCode() ^
+                ((DestinationIp.GetHashCode() ^ DestinationPort.GetHashCode()) as object).GetHashCode();
         }       
     }
 

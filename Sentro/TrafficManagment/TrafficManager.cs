@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Divert.Net;
 using Sentro.Utilities;
@@ -40,18 +41,13 @@ namespace Sentro.TrafficManagment
             return _trafficManager ?? (_trafficManager = new TrafficManager());
         }
 
-        public void Stop()
-        {
-            running = false;
-        }
-
-
+       
         private void Divert(bool forwardMode)
         {
-            Dictionary<Connection, TcpRecon> divertDict = new Dictionary<Connection, TcpRecon>();
+            var divertDict = new Dictionary<Connection, TcpBuffer>();
             Diversion diversion;
 
-            string filter = "tcp.PayloadLength > 0 and (tcp.DstPort == 80 or tcp.SrcPort == 80)";
+            string filter = "tcp.DstPort == 80 or tcp.SrcPort == 80";
             //string filter = "tcp.PayloadLength > 0 and (tcp.DstPort == 80 or tcp.DstPort == 443 or tcp.SrcPort == 443 or tcp.SrcPort == 80)";
 
             try
@@ -84,6 +80,7 @@ namespace Sentro.TrafficManagment
             IPHeader ipHeader = new IPHeader();
             TCPHeader tcpHeader = new TCPHeader();
 
+            logger.Info(Tag,"started traffic manager");
             while (running)
             {
                 receiveLength = 0;
@@ -96,54 +93,76 @@ namespace Sentro.TrafficManagment
                     continue;
                 }
 
+                //Connection connection = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort,
+                //        ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
 
-                /*
-                if is outbound ie: request
-                    parse
-                    if available in cache
-                        make a proper response from cache
-                    else
-                        let it pass        
-                        put it in dictonary
+                //if (divertDict.ContainsKey(connection))
+                //{
+                //    /*pass*/                    
+                //    diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
 
-                    
-                else if inbound ie: response
-                    let it pass
-                    parse 
-                    send the request and response to cache
-                
-                */
+                //    if (address.Direction == DivertDirection.Outbound)
+                //        throw new NotImplementedException("interleved requests");
+                //    else
+                //    {
+                //        diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
+                //        if (tcpHeader.Psh == 1 /*&& parseToHTTP*/)
+                //        {
+                //            /*pass to cache manager*/
+                //        }
+                //        else
+                //        {
+                //            /*put in buffer*/
 
-                if (address.Direction == DivertDirection.Inbound)
-                {
-                    diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
-                    diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
-                    Connection c = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort,
-                        ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
+                //            bool isBufferFull = true;/*check here*/
+                //            if (isBufferFull)
+                //            {
+                //                /*flush buffer*/
+                //            }
+                //        }
 
-                    if (!divertDict.ContainsKey(c))
-                    {
-                        TcpRecon tcpRecon = new TcpRecon();
-                        divertDict.Add(c, tcpRecon);
-                    }
+                //    }
+                //}
+                //else
+                //{
+                //    if (address.Direction == DivertDirection.Inbound)
+                //    {
+                //        /*pass*/
+                //        diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
+                //    }
+                //    else
+                //    {
+                //        if (tcpHeader.Psh == 0 /*|| CantParseToHTTP*/)
+                //        {
+                //            diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
+                //        }
+                //        else
+                //        {
+                //            /*ask cache manager for cache*/
+                //            bool isCached = false;
+                //            if (isCached)
+                //            {
+                //                /*send response*/
+                //                /*reset connection*/                                
+                //            }
+                //            else
+                //            {
+                //                divertDict.Add(connection,new TcpRecon());
+                //                diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
+                //            }
+                //        }
+                //    }
+                //}                
+               
 
-                    divertDict[c].reassemble_tcp(tcpHeader.SequenceNumber, 0, buffer, (ulong) buffer.Length,
-                        tcpHeader.Syn != 0,
-                        Convert.ToUInt32(ipHeader.SourceAddress.GetAddressBytes()),
-                        Convert.ToUInt32(ipHeader.DestinationAddress.GetAddressBytes()),
-                        tcpHeader.SourcePort, tcpHeader.DestinationPort);
-                }
-
-                else if (address.Direction == DivertDirection.Outbound)
+                if (address.Direction == DivertDirection.Outbound)
                 {
                     diversion.CalculateChecksums(buffer, receiveLength, 0);
-                    diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
-                    diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
                 }
-
-
-                //asyncParseAndLog(receiveLength,file,diversion,buffer,ipHeader,tcpHeader);               
+                diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
+                asyncParseAndLog(receiveLength,file,diversion,buffer,ipHeader,tcpHeader);               
             }
+
 
             diversion.Close();
         }
@@ -154,8 +173,12 @@ namespace Sentro.TrafficManagment
             await Task.Run(() =>
             {
                 diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
-                var start = ipHeader.HeaderLength + tcpHeader.HeaderLength;
+                var start = ipHeader.HeaderLength*4 + tcpHeader.HeaderLength*4;                                           
                 var count = receiveLength - start;
+
+                if (count <= 0)
+                    return;
+
                 Log("tcp header length : " + tcpHeader.HeaderLength + " \n ip header length : " + ipHeader.HeaderLength,file);
                 Log($"ip : {ipHeader.SourceAddress} -> {ipHeader.DestinationAddress} \n port : {tcpHeader.SourcePort} -> {tcpHeader.DestinationPort}",file);
                 Log(buffer, start, (int) count, file);
@@ -175,5 +198,24 @@ namespace Sentro.TrafficManagment
             //Console.WriteLine(o);                        
             file.Write(o, start, count);
         }
+
+        public void Stop()
+        {
+            running = false;
+        }
+
+
+        private bool isHttpGet(ref byte[] packetBytes, int offset)
+        {
+            string http = Encoding.ASCII.GetString(packetBytes, offset, packetBytes.Length - offset);
+            return Regex.IsMatch(http, CommonRegex.HttpGet);
+        }
+
+        private bool isHttpResponse(ref byte[] packetBytes, int offset)
+        {
+            string http = Encoding.ASCII.GetString(packetBytes, offset, packetBytes.Length - offset);
+            return Regex.IsMatch(http, CommonRegex.HttpResonse);
+        }
+
     }
 }
