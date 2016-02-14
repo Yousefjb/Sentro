@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 
 
 namespace Sentro.CacheManager
@@ -8,18 +7,17 @@ namespace Sentro.CacheManager
     {
         private string _mainDirectory;
 
-        public FileHierarchy _fileHierarchy;
+        public static FileHierarchy _fileHierarchy;
         private FileHierarchy()
         {
             _mainDirectory = "C:/Sentro/CacheStorage";
             Init();
         }
-        public FileHierarchy GetInstance()
+        public static FileHierarchy GetInstance()
         {
-            if (_fileHierarchy == null)
-                _fileHierarchy = new FileHierarchy();
-            return _fileHierarchy;
+            return _fileHierarchy ?? (_fileHierarchy = new FileHierarchy());
         }
+
         private void Init()
         {
             // Create Main folder if not exist

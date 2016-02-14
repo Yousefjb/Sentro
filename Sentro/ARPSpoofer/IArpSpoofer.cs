@@ -1,6 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using PcapDotNet.Packets.IpV4;
 
 namespace Sentro.ARPSpoofer
 {
