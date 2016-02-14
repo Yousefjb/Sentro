@@ -93,33 +93,6 @@ namespace Sentro.CacheManager
             return hashed_url.ToString("X");
         } 
 
-        public int Hier(string _MainDirectory = "C:/Sentro/CacheStorage")
-        {
-            // Create Main folder if not exist
-            if (!Directory.Exists(_MainDirectory))
-                Directory.CreateDirectory(_MainDirectory);
-            string level1path, level2path;
-            // Create first level folders
-            for (int i=0; i<16; i++)
-            {
-                level1path = _MainDirectory + "/" + i.ToString("X");
-                if( !Directory.Exists(level1path) )
-                    Directory.CreateDirectory(level1path);
-                // Create second level folders
-                for (int k = 0; k < 256; k++)
-                {
-                    level2path = level1path + "/" + k.ToString("X2");
-                    if (!Directory.Exists(level2path))
-                        Directory.CreateDirectory(level2path);
-                }
-                Console.WriteLine(level1path + " ..Created");
-
-            }
-
-
-
-            return 0;
-        }
     }
 
     #region Hashing Algorithm
