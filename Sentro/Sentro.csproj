@@ -97,6 +97,8 @@
   <ItemGroup>
     <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
     <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
+    <Compile Include="CacheManager\CacheManager.cs" />
+    <Compile Include="CacheManager\FileHierarchy.cs" />
     <Compile Include="TrafficManagment\Connection.cs" />
     <Compile Include="TrafficManagment\TcpBuffer.cs" />
     <Compile Include="TrafficManagment\TcpRecon.cs" />
@@ -122,9 +124,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="CacheManager\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <Content Include="SentroLogo.ico" />
   </ItemGroup>
