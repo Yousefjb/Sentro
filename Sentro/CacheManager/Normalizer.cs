@@ -8,7 +8,7 @@ namespace Sentro.CacheManager
         public static string Tag = "Normalizer";
         private static Normalizer _normalizer;
 
-        private Normalizer()
+        public Normalizer()
         {
         }
 
