@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using PcapDotNet.Base;
@@ -13,7 +12,7 @@ using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.IpV4;
 using Sentro.Utilities;
 
-namespace Sentro.ARPSpoofer
+namespace Sentro.ARP
 {
     /*
         Responsipility : Perform ARP Cache Poison attack         
@@ -421,6 +420,11 @@ namespace Sentro.ARPSpoofer
             _targetsIpToMac[target] = mac;
             NetworkUtilites.InsertStaticMac(networkInterface, target, _targetsIpToMac[target]);
             return true;
+        }
+
+        public bool IsTargeted(string target)
+        {
+            return _targetsIps.Contains(target);
         }
 
         public void Spoof(string myIp)

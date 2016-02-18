@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using PcapDotNet.Packets.IpV4;
-using Sentro.ARPSpoofer;
+using Sentro.ARP;
 using Sentro.Traffic;
 
 namespace Sentro.Utilities

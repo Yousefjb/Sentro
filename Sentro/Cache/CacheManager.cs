@@ -25,7 +25,7 @@ namespace Sentro.Cache
             return _cacheManger ?? (_cacheManger = new CacheManager());
         }
 
-        public void Cache(SentroHttpRequest request, SentroHttpResponse response)
+        public void Cache(SentroRequest request, SentroResponse response)
         {
             string normalizedUrl = new Normalizer().Normalize(request.RequestUri());
             string hashedUrl = new Murmur2().Hash(normalizedUrl.ToBytes());
@@ -62,7 +62,7 @@ namespace Sentro.Cache
                 //LOG: The temp directory foes not exist
             }
         }
-        void WriteToFileHierarchy(SentroHttpResponse response, string hashedUrl)
+        void WriteToFileHierarchy(SentroResponse response, string hashedUrl)
         {
             // Evaluate destination folder
             string lvl1 = hashedUrl[0].ToString();
@@ -73,7 +73,7 @@ namespace Sentro.Cache
             
 
         }
-        bool isCachable(SentroHttpResponse response)
+        bool isCachable(SentroResponse response)
         {
             //
             return true;
@@ -82,7 +82,7 @@ namespace Sentro.Cache
         {
             return true;
         }
-        public SentroHttpResponse Get(SentroHttpRequest request)
+        public SentroResponse Get(SentroRequest request)
         {
             string normalizedUrl = new Normalizer().Normalize(request.RequestUri());
             string hashedUrl = new Murmur2().Hash(normalizedUrl.ToBytes());
@@ -101,12 +101,12 @@ namespace Sentro.Cache
             {
                 // return HttpResponse From Cache
                 var bytes = File.ReadAllBytes(_destenationFile);
-                return new SentroHttpResponse(bytes,bytes.Length);
+                return new SentroResponse(bytes,bytes.Length);
             }
 
            
         }
-        bool IsInCache(SentroHttpRequest req)
+        bool IsInCache(SentroRequest req)
         {
             return true;
         }

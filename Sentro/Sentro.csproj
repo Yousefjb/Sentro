@@ -95,12 +95,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
-    <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
+    <Compile Include="ARP\ArpSpoofer.cs" />
+    <Compile Include="ARP\IArpSpoofer.cs" />
     <Compile Include="Cache\CacheManager.cs" />
     <Compile Include="Cache\Normalizer.cs" />
-    <Compile Include="Traffic\SentroHttpRequest.cs" />
-    <Compile Include="Traffic\SentroHttpResponse.cs" />
+    <Compile Include="Traffic\SentroRequest.cs" />
+    <Compile Include="Traffic\SentroResponse.cs" />
     <Compile Include="Traffic\ITcpStreem.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />
     <Compile Include="Traffic\Connection.cs" />

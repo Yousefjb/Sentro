@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Sentro.ARPSpoofer
+namespace Sentro.ARP
 {
     interface IArpSpoofer
     {
