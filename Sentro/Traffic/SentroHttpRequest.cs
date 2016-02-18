@@ -1,4 +1,6 @@
-﻿namespace Sentro.Traffic
+﻿using System;
+
+namespace Sentro.Traffic
 {
     class SentroHttpRequest : ITcpStreem
     {
@@ -13,9 +15,28 @@
             throw new System.NotImplementedException();
         }
 
+        public SentroHttpRequest()
+        {
+        }
+
+        public SentroHttpRequest(byte[] buffer,int length)
+        {
+
+        }
+
         public void Push(ref byte[] buffer, uint length)
         {
             throw new System.NotImplementedException();
+        }
+
+        public byte[] ToBytes()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public string RequestUri()
+        {
+            throw new NotImplementedException();
         }
     }
 }

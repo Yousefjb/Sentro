@@ -17,5 +17,20 @@
         {
             throw new System.NotImplementedException();
         }
+
+        public byte[] ToBytes()
+        {
+            throw new System.NotImplementedException();
+        }
+
+
+        public SentroHttpResponse()
+        {
+        }
+
+        public SentroHttpResponse(byte[] buffer, int length)
+        {
+
+        }
     }
 }

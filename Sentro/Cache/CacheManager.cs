@@ -1,8 +1,7 @@
 ﻿using Sentro.Utilities;
 using System;
 using System.IO;
-using System.Net;
-using Sentro.Utilities;
+using Sentro.Traffic;
 
 namespace Sentro.Cache
 {
@@ -26,9 +25,9 @@ namespace Sentro.Cache
             return _cacheManger ?? (_cacheManger = new CacheManager());
         }
 
-        public void Cache(HttpWebRequest request, HttpWebResponse response)
+        public void Cache(SentroHttpRequest request, SentroHttpResponse response)
         {
-            string normalizedUrl = new Normalizer().Normalize(request.RequestUri.ToString());
+            string normalizedUrl = new Normalizer().Normalize(request.RequestUri());
             string hashedUrl = new Murmur2().Hash(normalizedUrl.ToBytes());
 
 
@@ -63,18 +62,18 @@ namespace Sentro.Cache
                 //LOG: The temp directory foes not exist
             }
         }
-        void WriteToFileHierarchy(HttpWebResponse response, string hashedUrl)
+        void WriteToFileHierarchy(SentroHttpResponse response, string hashedUrl)
         {
             // Evaluate destination folder
             string lvl1 = hashedUrl[0].ToString();
             string lvl2 = hashedUrl.Substring(1, 2);
             string _destenationFile = String.Format("{0}\\{1}\\{2}\\{3}", _mainDirectory, lvl1, lvl2, hashedUrl);
 
-            File.WriteAllBytes(_destenationFile,response.ToByte());
+            File.WriteAllBytes(_destenationFile,response.ToBytes());
             
 
         }
-        bool isCachable(HttpWebResponse response)
+        bool isCachable(SentroHttpResponse response)
         {
             //
             return true;
@@ -83,9 +82,9 @@ namespace Sentro.Cache
         {
             return true;
         }
-        public HttpWebResponse Get(HttpWebRequest request)
+        public SentroHttpResponse Get(SentroHttpRequest request)
         {
-            string normalizedUrl = new Normalizer().Normalize(request.RequestUri.ToString());
+            string normalizedUrl = new Normalizer().Normalize(request.RequestUri());
             string hashedUrl = new Murmur2().Hash(normalizedUrl.ToBytes());
             
             // Evaluate destination folder
@@ -94,20 +93,20 @@ namespace Sentro.Cache
             string _destenationFile = String.Format("{0}\\{1}\\{2}\\{3}", _mainDirectory, lvl1, lvl2, hashedUrl);
 
 
-            if (isInCache(request))
+            if (IsInCache(request))
             {
                 return null;
             }
             else
             {
                 // return HttpResponse From Cache
-
-                return File.ReadAllBytes(_destenationFile).ToHttpResponse();
+                var bytes = File.ReadAllBytes(_destenationFile);
+                return new SentroHttpResponse(bytes,bytes.Length);
             }
 
            
         }
-        bool isInCache(HttpWebRequest req)
+        bool IsInCache(SentroHttpRequest req)
         {
             return true;
         }
