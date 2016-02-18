@@ -70,7 +70,7 @@ namespace Sentro.Cache
             string lvl2 = hashedUrl.Substring(1, 2);
             string _destenationFile = String.Format("{0}\\{1}\\{2}\\{3}", _mainDirectory, lvl1, lvl2, hashedUrl);
 
-            File.WriteAllBytes(_destenationFile,response.ToByte());
+            //File.WriteAllBytes(_destenationFile,response.ToByte());
             
 
         }
@@ -102,7 +102,7 @@ namespace Sentro.Cache
             {
                 // return HttpResponse From Cache
 
-                return File.ReadAllBytes(_destenationFile).ToHttpResponse();
+                //return File.ReadAllBytes(_destenationFile).ToHttpResponse();
             }
 
            
