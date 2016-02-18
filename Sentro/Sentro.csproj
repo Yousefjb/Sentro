@@ -97,13 +97,15 @@
   <ItemGroup>
     <Compile Include="ARPSpoofer\ArpSpoofer.cs" />
     <Compile Include="ARPSpoofer\IArpSpoofer.cs" />
-    <Compile Include="CacheManager\CacheManager.cs" />
-    <Compile Include="CacheManager\Normalizer.cs" />
+    <Compile Include="Cache\CacheManager.cs" />
+    <Compile Include="Cache\Normalizer.cs" />
+    <Compile Include="Traffic\SentroHttpRequest.cs" />
+    <Compile Include="Traffic\SentroHttpResponse.cs" />
+    <Compile Include="Traffic\ITcpStreem.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />
-    <Compile Include="TrafficManagment\Connection.cs" />
-    <Compile Include="TrafficManagment\TcpBuffer.cs" />
-    <Compile Include="TrafficManagment\TcpRecon.cs" />
-    <Compile Include="TrafficManagment\TrafficManager.cs" />
+    <Compile Include="Traffic\Connection.cs" />
+    <Compile Include="Traffic\ConnectionBuffer.cs" />
+    <Compile Include="Traffic\TrafficManager.cs" />
     <Compile Include="Utilities\CommonRegex.cs" />
     <Compile Include="Utilities\Extensions.cs" />
     <Compile Include="Utilities\FileLogger.cs" />

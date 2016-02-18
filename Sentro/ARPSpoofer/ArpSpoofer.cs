@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using PcapDotNet.Base;
@@ -28,7 +29,7 @@ namespace Sentro.ARPSpoofer
         private Dictionary<string, string> _targetsIpToMac;
         private HashSet<string> _excludedTargets;
         private HashSet<string> _targetsIps;
-        private string _myIp, _myMac, _gatewayIp, _gatewayMac;
+        private string _myIp, _myMac, _gatewayIp, _gatewayMac;        
 
         /*packet builders grouped here to avoid creating a new builder with each packet sent*/
         private Dictionary<string, PacketBuilder> _targetsPacketBuilders;
@@ -159,7 +160,7 @@ namespace Sentro.ARPSpoofer
             logger.Debug(Tag, "arp attack starting ..");
 
             var livePacketDevice = NetworkUtilites.GetLivePacketDevice(myIp);                       
-
+            
             _targetsIps = targets;
             _myIp = myIp;
             _myMac = livePacketDevice.GetMacAddress().ToString();
@@ -171,7 +172,8 @@ namespace Sentro.ARPSpoofer
             foreach (var ip in targets)
                 _targetsIpToMac.Add(ip, NetworkUtilites.GetMacAddress(ip));
 
-            var networkInterface = livePacketDevice.GetNetworkInterface();            
+            var networkInterface = livePacketDevice.GetNetworkInterface();                                  
+        
             PacketCommunicator communicator = livePacketDevice.Open(50, PacketDeviceOpenAttributes.None, 50);
 
             BeforeAllAttack(livePacketDevice,communicator);
@@ -183,7 +185,7 @@ namespace Sentro.ARPSpoofer
                   
             communicator.Dispose();
 
-        }
+        }             
 
         private void BeforeAllAttack(LivePacketDevice livePacketDevice, PacketCommunicator communicator)
         {

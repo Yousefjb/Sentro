@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text;
 
-namespace Sentro.CacheManager
+namespace Sentro.Cache
 {
     class Normalizer
     {

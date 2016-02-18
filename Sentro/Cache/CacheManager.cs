@@ -1,11 +1,12 @@
-﻿
-namespace Sentro.CacheManager
+﻿using Sentro.Utilities;
+
+namespace Sentro.Cache
 {
     internal class CacheManager
     {
-        public static string Tag = "CacheManager";
+        public const string Tag = "CacheManager";
 
-        private CacheManager _cacheManger;
+        private static CacheManager _cacheManger;
 
         private CacheManager()
         {
@@ -15,7 +16,7 @@ namespace Sentro.CacheManager
             //string hashedUrl = new Murmur2().Hash(url.ToBytes());
         }
 
-        public CacheManager GetInstance()
+        public static CacheManager GetInstance()
         {           
             return _cacheManger ?? (_cacheManger = new CacheManager());
         }

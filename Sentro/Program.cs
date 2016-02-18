@@ -21,18 +21,18 @@ namespace Sentro
             MainPoint:
             try
             {
-                
+
                 using (new SingleGlobalInstance(1000))
                 {
-                    _handler = ConsoleEventCallback;        //used to detect terminiation
-                    SetConsoleCtrlHandler(_handler, true);  //using mutix and callbacks
+                    _handler = ConsoleEventCallback; //used to detect terminiation
+                    SetConsoleCtrlHandler(_handler, true); //using mutix and callbacks
                     Console.CancelKeyPress += delegate { CleanUpSentro(); };
 
                     string readLine;
                     do
-                    {                       
+                    {
                         readLine = ReadLineAsync().Result;
-                        if(readLine.IsNullOrEmpty())
+                        if (readLine.IsNullOrEmpty())
                             continue;
 
                         var commands = readLine.Split(' ');
@@ -48,10 +48,10 @@ namespace Sentro
                                 Task.Run(() => InputHandler.Traffic(readLine));
                                 break;
                             case "exit":
-                                break;                           
+                                break;
                             default:
-                                logger.Info(Tag,$"{commands[0]} undefined");
-                                break;                                
+                                logger.Info(Tag, $"{commands[0]} undefined");
+                                break;
                         }
 
                     } while (readLine != null && !readLine.Equals("exit"));
@@ -59,14 +59,18 @@ namespace Sentro
                     CleanUpSentro();
                 }
             }
+            catch (TimeoutException singleProcessException)
+            {
+                logger.Error(Tag,singleProcessException.Message);
+            }
             catch (Exception e)
             {
                 //TODO: write try catch in each class insted of catching all here
-                logger.Error(Tag,e.Message);
-                logger.Info(Tag,e.StackTrace);
+                logger.Error(Tag, e.Message);
+                logger.Info(Tag, e.StackTrace);
                 goto MainPoint;
             }
-         }
+        }
 
         #region Clean up before Sentro termination
         static bool ConsoleEventCallback(int eventType)

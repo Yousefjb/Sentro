@@ -1,7 +1,7 @@
 ﻿using System.IO;
 
 
-namespace Sentro.CacheManager
+namespace Sentro.Utilities
 {
     class FileHierarchy
     {

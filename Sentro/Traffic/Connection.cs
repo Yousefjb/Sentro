@@ -1,10 +1,8 @@
-﻿using System;
-
-namespace Sentro.TrafficManagment
+﻿namespace Sentro.Traffic
 {
     class Connection
-    {        
-
+    {
+        public const string Tag = "Connection";
         public string SourceIp { get; }        
         public ushort SourcePort { get; }        
         public string DestinationIp { get; }        

@@ -15,6 +15,7 @@ namespace Sentro.Utilities
 
     public class SuperFastHashSimple : IHashAlgorithm
     {
+        public const string Tag = "SuperFastHashSimple";
         public string Hash(Byte[] dataToHash)
         {
             Int32 dataLength = dataToHash.Length;
@@ -70,6 +71,7 @@ namespace Sentro.Utilities
 
     internal class Murmur2 : ISeededHashAlgorithm
     {
+        public const string Tag = "Murmur2";
         public string Hash(Byte[] data)
         {
             return Hash(data, 0xc58f1a7b);

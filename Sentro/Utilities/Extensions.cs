@@ -10,8 +10,10 @@ namespace Sentro.Utilities
     static class Extensions
     {
         public const string Tag = "Extensions";
+
         public static ReadOnlyCollection<byte> ToBytes(this MacAddress mac)
         {
+            var x = mac.ToValue();
             var hexValues = mac.ToString().Split(':');
             if (hexValues.Length != 6)
                 throw new InvalidCastException($"{mac} is not a valid mac address");

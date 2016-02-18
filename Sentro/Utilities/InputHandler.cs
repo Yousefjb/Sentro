@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using PcapDotNet.Packets.IpV4;
 using Sentro.ARPSpoofer;
-using Sentro.TrafficManagment;
+using Sentro.Traffic;
 
 namespace Sentro.Utilities
 {

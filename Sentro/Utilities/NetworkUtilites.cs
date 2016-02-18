@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using PcapDotNet.Core;
 using PcapDotNet.Core.Extensions;
+using PcapDotNet.Packets.IpV4;
 
 namespace Sentro.Utilities
 {
@@ -88,7 +91,27 @@ namespace Sentro.Utilities
             ConsoleLogger.GetInstance().Debug(Tag,$"{macAddress} belongs to this {ipAddress}");
             return macAddress;
         }
-        
+
+        public static uint GetSubnetMask(NetworkInterface adapter, string address)
+        {
+
+            foreach (
+                UnicastIPAddressInformation unicastIpAddressInformation in adapter.GetIPProperties().UnicastAddresses)
+            {
+                if (unicastIpAddressInformation.Address.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    if (address.Equals(unicastIpAddressInformation.Address.ToString()))
+                    {
+                        var bytes = unicastIpAddressInformation.IPv4Mask.GetAddressBytes();
+                        Array.Reverse(bytes);
+                        return BitConverter.ToUInt32(bytes,0);
+                    }
+                }
+            }
+
+            return 0;
+        }
+
         /*
         public static Dictionary<string,string> GetMacAddress(HashSet<string> ipAddresses)
         {
