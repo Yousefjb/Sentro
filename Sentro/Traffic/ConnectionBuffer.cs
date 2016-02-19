@@ -7,7 +7,9 @@ namespace Sentro.Traffic
     {
         public const string Tag = "ConnectionBuffer";
         private FileHierarchy _fileHierarchy;
-        private ITcpStreem _request,_response;
+        private SentroRequest _request;
+        private SentroResponse _response;
+        private bool _tempCreated;
 
         public ConnectionBuffer(SentroRequest request)
         {
@@ -18,20 +20,35 @@ namespace Sentro.Traffic
 
         public void Buffer(ref byte[] bytes, int length)
         {
-            throw new NotImplementedException();
+            if (!_response.CanHoldMore(length))
+            {
+                if (!_tempCreated)
+                    Flush(_request);
+
+                Flush(_response);
+                _tempCreated = true;
+            }
+
+            _response.Push(ref bytes,length);
         }
 
         public SentroRequest Request()
         {
-            throw new NotImplementedException();
+            return _request;
         }
 
         public SentroResponse Response()
         {
-            throw new NotImplementedException();
+            return _response;
         }
 
         public void Reset()
+        {
+            _request.Dispose();
+            _response.Dispose();            
+        }
+
+        private void Flush(ITcpStreem streem)
         {
             throw new NotImplementedException();
         }

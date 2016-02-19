@@ -16,12 +16,17 @@ namespace Sentro.Traffic
             throw new NotImplementedException();
         }
 
-        public void Push(ref byte[] buffer, uint length)
+        public void Push(ref byte[] buffer, int length)
         {
             throw new NotImplementedException();
         }
 
         public byte[] ToBytes()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
         {
             throw new NotImplementedException();
         }

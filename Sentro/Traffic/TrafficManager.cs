@@ -15,6 +15,7 @@ namespace Sentro.Traffic
         Responsipility : Sniff HTTP/S Request and Respons packets and take action
     */
     //TODO handle packets in async 
+    //TODO where should i use CalcualteChecksum ?
     //TODO clean up
 
     public class TrafficManager
@@ -37,18 +38,7 @@ namespace Sentro.Traffic
         {
             return _trafficManager ?? (_trafficManager = new TrafficManager());
         }
-
-        public void Start()
-        {
-            if(_running)
-                return;
-
-            _running = true;
-            Task.Run(() => Divert(true));
-            Task.Run(() => Divert(false));
-        }
-
-
+     
         private void Divert(bool forwardMode)
         {
             var divertDict = new Dictionary<Connection, ConnectionBuffer>();
@@ -235,9 +225,19 @@ namespace Sentro.Traffic
         public void Stop()
         {
             _running = false;
-        }        
+        }
 
-       
+        public void Start()
+        {
+            if (_running)
+                return;
+
+            _running = true;
+            Task.Run(() => Divert(true));
+            Task.Run(() => Divert(false));
+        }
+
+
         /*testing function*/
         private async void asyncParseAndLog(uint receiveLength, FileStream file, Diversion diversion, byte[] buffer,
           IPHeader ipHeader, TCPHeader tcpHeader)

@@ -2,9 +2,10 @@
 
 namespace Sentro.Traffic
 {
-    class SentroRequest : ITcpStreem
+    internal class SentroRequest : ITcpStreem
     {
         public const string Tag = "SentroHttpRequest";
+
         public bool CanHoldMore(int bytesCount)
         {
             throw new NotImplementedException();
@@ -19,17 +20,24 @@ namespace Sentro.Traffic
         {
             throw new NotImplementedException();
         }
+
         public SentroRequest(byte[] buffer)
         {
             throw new NotImplementedException();
         }
-        public SentroRequest(ref byte[] buffer,int length)
+
+        public SentroRequest(ref byte[] buffer, int length)
         {
             /*copy buffer here*/
             throw new NotImplementedException();
         }
 
-        public void Push(ref byte[] buffer, uint length)
+        public SentroRequest(ITcpStreem streem)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Push(ref byte[] buffer, int length)
         {
             throw new NotImplementedException();
         }
@@ -39,7 +47,17 @@ namespace Sentro.Traffic
             throw new NotImplementedException();
         }
 
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
         public string RequestUri()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string RequestUriHashed()
         {
             throw new NotImplementedException();
         }

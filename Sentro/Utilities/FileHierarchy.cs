@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 
 namespace Sentro.Utilities
@@ -41,6 +42,11 @@ namespace Sentro.Utilities
 
             }
            
+        }
+
+        public void WriteToTemp(string hash, ref byte[] bytes)
+        {
+            throw new NotImplementedException();                        
         }
     }
 }
