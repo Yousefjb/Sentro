@@ -1,35 +1,42 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Text.RegularExpressions;
+using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
     internal class SentroRequest : ITcpStreem
     {
         public const string Tag = "SentroHttpRequest";
+        private List<byte[]> _buffer;
+        private int _maxBufferSize;
+        private int _currentBufferSize;
+        private int _totalSize;
+        private string requestUri = "";
 
         public bool CanHoldMore(int bytesCount)
         {
-            throw new NotImplementedException();
-        }
-
-        public void Push(byte[] buffer)
-        {
-            throw new NotImplementedException();
+            return _currentBufferSize + bytesCount <= _maxBufferSize;
         }
 
         public SentroRequest()
         {
-            throw new NotImplementedException();
+            Init();
         }
 
-        public SentroRequest(byte[] buffer)
+        public SentroRequest(byte[] bytes, int length)
         {
-            throw new NotImplementedException();
+            Init();
+            Push(bytes,length);
         }
 
-        public SentroRequest(ref byte[] buffer, int length)
+        private void Init()
         {
-            /*copy buffer here*/
-            throw new NotImplementedException();
+            _buffer = new List<byte[]>();
+            _maxBufferSize = 2048;//2KB TODO: load from settings
+            _currentBufferSize = 0;
+            _totalSize = 0;
         }
 
         public SentroRequest(ITcpStreem streem)
@@ -37,14 +44,30 @@ namespace Sentro.Traffic
             throw new NotImplementedException();
         }
 
-        public void Push(ref byte[] buffer, int length)
+        public void Push(byte[] bytes, int length)
         {
-            throw new NotImplementedException();
+            if (bytes.Length == length)
+                _buffer.Add(bytes);
+            else
+            {
+                var copy = new byte[length];
+                Array.Copy(bytes, copy, length);
+                _buffer.Add(copy);
+            }
+            _currentBufferSize += length;
+            _totalSize += length;
         }
 
         public byte[] ToBytes()
         {
-            throw new NotImplementedException();
+            var bytes = new byte[_totalSize + _buffer.Count*4];
+            int index = 0;
+            foreach (var packet in _buffer)
+            {
+                Array.Copy(packet,0,bytes,index,packet.Length);
+                index += packet.Length;
+            }
+            return bytes;
         }
 
         public void Dispose()
@@ -54,12 +77,20 @@ namespace Sentro.Traffic
 
         public string RequestUri()
         {
-            throw new NotImplementedException();
+            if (requestUri.Length != 0)
+                return requestUri;
+
+            var ascii = Encoding.ASCII.GetString(_buffer[0]);
+            var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch);
+            string path = result.Value;
+            string host = result.NextMatch().Value;
+            requestUri = host + path;
+            return requestUri;
         }
 
         public string RequestUriHashed()
         {
-            throw new NotImplementedException();
+            return new Murmur2().Hash(Encoding.ASCII.GetBytes(RequestUri()));
         }
     }
 }

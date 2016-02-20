@@ -128,7 +128,7 @@ namespace Sentro.Traffic
                     {
                         /*
                           new connection started as inbound is either 
-                          due to missed request or sentro started after request submit
+                          due to missed request or sentro started after request submit.
                           let it pass
                         */
                         diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
@@ -144,7 +144,7 @@ namespace Sentro.Traffic
                         }
                         else //cacheable
                         {                            
-                            var request = new SentroRequest(ref buffer,(int)receiveLength);
+                            var request = new SentroRequest(buffer,(int)receiveLength);
                             var response = _cacheManager.Get(request);
                             if (response != null)
                             {   

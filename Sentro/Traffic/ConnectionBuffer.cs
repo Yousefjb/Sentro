@@ -29,7 +29,7 @@ namespace Sentro.Traffic
                 _tempCreated = true;
             }
 
-            _response.Push(ref bytes,length);
+            _response.Push(bytes,length);
         }
 
         public SentroRequest Request()
