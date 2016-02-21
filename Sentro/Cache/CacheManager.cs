@@ -84,6 +84,7 @@ namespace Sentro.Cache
         }
         public SentroResponse Get(SentroRequest request)
         {
+            return null;//TODO:remove this line
             string normalizedUrl = new Normalizer().Normalize(request.RequestUri());
             string hashedUrl = new Murmur2().Hash(normalizedUrl.ToBytes());
             

@@ -37,7 +37,7 @@
 
         public override int GetHashCode()
         {
-            return ((SourceIp.GetHashCode() ^ SourceIp.GetHashCode()) as object).GetHashCode() ^
+            return ((SourceIp.GetHashCode() ^ SourcePort.GetHashCode()) as object).GetHashCode() ^
                 ((DestinationIp.GetHashCode() ^ DestinationPort.GetHashCode()) as object).GetHashCode();
         }       
     }

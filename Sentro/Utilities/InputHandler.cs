@@ -136,7 +136,7 @@ namespace Sentro.Utilities
         public static void Traffic(string command)
         {
             if (command.Contains("start")) { 
-                 var x = TrafficManager.GetInstance();                
+                 TrafficManager.GetInstance().Start();                
             }
             else if (command.Contains("stop"))
                 TrafficManager.GetInstance().Stop();
