@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -19,14 +21,14 @@ namespace Sentro.Utilities
         private Settings()
         {
             Reload();
-            //Task.Run(() =>
-            //{
-            //    while (true)
-            //    {
-            //        Reload();
-            //        Thread.Sleep(Convert.ToInt32(Setting.settingsReloadRate));
-            //    }
-            //});
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    Reload();
+                    Thread.Sleep(Convert.ToInt32(Setting.SettingsReloadRate));
+                }
+            });
         }
 
         private void Reload()

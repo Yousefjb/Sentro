@@ -138,7 +138,7 @@ namespace Sentro.ARP
 
                     }
 
-                    var delayDuration = 30000; //Convert.ToInt32(settings.Setting.arpSpoofer.frequency);
+                    var delayDuration = Convert.ToInt32(Settings.GetInstance().Setting.ArpSpoofer.Frequency);
                     logger.Debug(Tag, $"sleeping for {delayDuration/1000}s");
                     Task.Delay(delayDuration).Wait();
                 }

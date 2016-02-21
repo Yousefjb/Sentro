@@ -101,7 +101,7 @@
     <Compile Include="Cache\Normalizer.cs" />
     <Compile Include="Traffic\SentroRequest.cs" />
     <Compile Include="Traffic\SentroResponse.cs" />
-    <Compile Include="Traffic\ITcpStreem.cs" />
+    <Compile Include="Traffic\TcpStreem.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />
     <Compile Include="Traffic\Connection.cs" />
     <Compile Include="Traffic\ConnectionBuffer.cs" />

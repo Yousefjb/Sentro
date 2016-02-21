@@ -101,24 +101,27 @@ namespace Sentro.Traffic
                         /*pass - no need to calcualte checksum*/
                         diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
 
-                        if (address.Direction != DivertDirection.Inbound &&
-                            (!forwardMode || !IsArpTarget(ipHeader.DestinationAddress.ToString()))) continue;
-
-                        var connectionBuffer = divertDict[connection];
-
-                        connectionBuffer.Buffer(ref buffer, (int) receiveLength);                            
-                        /*end of http response*/
-                        if (tcpHeader.Psh != 1) continue;
-                        var offset = Offset(tcpHeader, ipHeader);
-
-                        if (receiveLength - offset > 0
-                            && IsHttpResponse(ref buffer, offset, receiveLength))
+                        if (address.Direction == DivertDirection.Inbound ||
+                            (forwardMode && IsArpTarget(ipHeader.DestinationAddress.ToString())))
                         {
-                            //var request = connectionBuffer.Request();
-                            //var response = connectionBuffer.Response();
-                            //_cacheManager.Cache(request,response);
-                            //connectionBuffer.Reset();                                
-                            divertDict.Remove(connection);                                    
+                            var connectionBuffer = divertDict[connection];
+
+                            connectionBuffer.Buffer(ref buffer, (int) receiveLength);
+                            /*end of http response*/
+                            if (tcpHeader.Psh == 1)
+                            {
+                                var offset = Offset(tcpHeader, ipHeader);
+
+                                if (receiveLength - offset > 0
+                                    && IsHttpResponse(ref buffer, offset, receiveLength))
+                                {
+                                    var request = connectionBuffer.Request();
+                                    var response = connectionBuffer.Response();
+                                    _cacheManager.Cache(request,response);
+                                    connectionBuffer.Reset();                                
+                                    divertDict.Remove(connection);
+                                }
+                            }
                         }
                     }
                     else // new connection need to moniture
@@ -148,7 +151,7 @@ namespace Sentro.Traffic
                                 var response = _cacheManager.Get(request);
                                 if (response != null)
                                 {
-                                    response.MatchFor(request);
+                                    response.SetAddressesFrom(request);
                                     var packets = response.Packets();
                                     address.Direction = DivertDirection.Outbound;
                                     foreach (var packet in packets)
@@ -203,21 +206,6 @@ namespace Sentro.Traffic
             return _arpSpoofer.State() != ArpSpoofer.Status.Stopped && _arpSpoofer.IsTargeted(ip);
         }
 
-        /*should be moved to logger*/
-        private void Log(string o, FileStream file)
-        {
-            //Console.WriteLine(o);
-            o = o + "\n";
-            var bytes = Encoding.ASCII.GetBytes(o);
-            file.Write(bytes, 0, bytes.Length);
-        }
-        /*should be moved to logger*/
-        private void Log(byte[] o, int start, int count, FileStream file)
-        {
-            //Console.WriteLine(o);                        
-            file.Write(o, start, count);
-        }
-
         public void Stop()
         {
             _running = false;
@@ -233,27 +221,5 @@ namespace Sentro.Traffic
             //Task.Run(() => Divert(true));
             Task.Run(() => Divert(false));            
         }
-
-
-        /*testing function*/
-        private async void asyncParseAndLog(uint receiveLength, FileStream file, Diversion diversion, byte[] buffer,
-          IPHeader ipHeader, TCPHeader tcpHeader)
-        {
-            await Task.Run(() =>
-            {
-                diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
-                var start = ipHeader.HeaderLength * 4 + tcpHeader.HeaderLength * 4;
-                var count = receiveLength - start;
-
-                if (count <= 0)
-                    return;
-
-                Log("tcp header length : " + tcpHeader.HeaderLength + " \n ip header length : " + ipHeader.HeaderLength, file);
-                Log($"ip : {ipHeader.SourceAddress} -> {ipHeader.DestinationAddress} \n port : {tcpHeader.SourcePort} -> {tcpHeader.DestinationPort}", file);
-                Log(buffer, start, (int)count, file);
-            });
-        }
-
-
     }
 }

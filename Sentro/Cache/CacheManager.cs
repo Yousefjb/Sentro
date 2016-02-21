@@ -7,17 +7,14 @@ namespace Sentro.Cache
 {
     internal class CacheManager
     {
-        public const string Tag = "CacheManager";        
-        private string _mainDirectory = "C:/Sentro/CacheStorage";
+        public const string Tag = "CacheManager";               
 
         private static CacheManager _cacheManger;
+        private static FileHierarchy _fileHierarchy;
 
         private CacheManager()
         {
-            var hirarachy = FileHierarchy.GetInstance();
-                        
-            //string url = "www.google.com";
-            //string hashedUrl = new Murmur2().Hash(url.ToBytes());
+            _fileHierarchy = FileHierarchy.GetInstance();                                   
         }
 
         public static CacheManager GetInstance()
@@ -27,52 +24,21 @@ namespace Sentro.Cache
 
         public void Cache(SentroRequest request, SentroResponse response)
         {
-            string normalizedUrl = new Normalizer().Normalize(request.RequestUri());
-            string hashedUrl = new Murmur2().Hash(normalizedUrl.ToBytes());
-
+            var hash = request.RequestUriHashed();
+            _fileHierarchy.WriteToTemp(hash,response.ToBytes());        
+            return;
 
             bool isTemp = true;
             if (isTemp)
             {
-                MoveToHierarchy(hashedUrl);
+                //MoveToHierarchy(hashedUrl);
             }
             else
             {
-                WriteToFileHierarchy(response, hashedUrl);
+                //WriteToFileHierarchy(response, hashedUrl);
             }
         }
-        void MoveToHierarchy(string hashedUrl)
-        {
-            string _tmpDirectory = _mainDirectory + "/tmp";
-            string _tmpFile = _tmpDirectory + hashedUrl;
 
-            // Evaluate destination folder
-            string lvl1 = hashedUrl[0].ToString();
-            string lvl2 = hashedUrl.Substring(1, 2);
-            string _destenationFile = String.Format("{0}\\{1}\\{2}\\{3}", _mainDirectory, lvl1, lvl2, hashedUrl);
-
-            // Start moving
-            if (Directory.Exists(_tmpFile))
-            {
-                File.Move(_tmpFile, _destenationFile);
-            }
-            else
-            {
-                //ERROR
-                //LOG: The temp directory foes not exist
-            }
-        }
-        void WriteToFileHierarchy(SentroResponse response, string hashedUrl)
-        {
-            // Evaluate destination folder
-            string lvl1 = hashedUrl[0].ToString();
-            string lvl2 = hashedUrl.Substring(1, 2);
-            string _destenationFile = String.Format("{0}\\{1}\\{2}\\{3}", _mainDirectory, lvl1, lvl2, hashedUrl);
-
-            File.WriteAllBytes(_destenationFile,response.ToBytes());
-            
-
-        }
         bool isCachable(SentroResponse response)
         {
             //
@@ -84,6 +50,13 @@ namespace Sentro.Cache
         }
         public SentroResponse Get(SentroRequest request)
         {
+            var hash = request.RequestUriHashed();
+            if (_fileHierarchy.ExistInTemp(hash))
+            {
+                var bytes = _fileHierarchy.ReadFromTemp(hash);
+                return new SentroResponse(bytes, bytes.Length);
+            }
+
             return null;//TODO:remove this line
             string normalizedUrl = new Normalizer().Normalize(request.RequestUri());
             string hashedUrl = new Murmur2().Hash(normalizedUrl.ToBytes());
@@ -91,7 +64,7 @@ namespace Sentro.Cache
             // Evaluate destination folder
             string lvl1 = hashedUrl[0].ToString();
             string lvl2 = hashedUrl.Substring(1, 2);
-            string _destenationFile = String.Format("{0}\\{1}\\{2}\\{3}", _mainDirectory, lvl1, lvl2, hashedUrl);
+            //string _destenationFile = String.Format("{0}\\{1}\\{2}\\{3}", _mainDirectory, lvl1, lvl2, hashedUrl);
 
 
             if (IsInCache(request))
@@ -101,8 +74,8 @@ namespace Sentro.Cache
             else
             {
                 // return HttpResponse From Cache
-                var bytes = File.ReadAllBytes(_destenationFile);
-                return new SentroResponse(bytes,bytes.Length);
+                //var bytes = File.ReadAllBytes(_destenationFile);
+                //return new SentroResponse(bytes,bytes.Length);
             }
 
            

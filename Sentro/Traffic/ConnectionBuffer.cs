@@ -48,7 +48,7 @@ namespace Sentro.Traffic
             _response.Dispose();            
         }
 
-        private void Flush(ITcpStreem streem)
+        private void Flush(TcpStreem streem)
         {
             throw new NotImplementedException();
         }

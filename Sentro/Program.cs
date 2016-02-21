@@ -48,7 +48,7 @@ namespace Sentro
                                 Task.Run(() => InputHandler.Traffic(readLine));
                                 break;
                             case "exit":
-                                break;
+                                break;                           
                             default:
                                 logger.Info(Tag, $"{commands[0]} undefined");
                                 break;

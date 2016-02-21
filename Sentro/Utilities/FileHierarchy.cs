@@ -6,12 +6,12 @@ namespace Sentro.Utilities
 {
     class FileHierarchy
     {
-        private string _mainDirectory;
+        private readonly string _mainDirectory;
 
-        public static FileHierarchy _fileHierarchy;
+        private static FileHierarchy _fileHierarchy;
         private FileHierarchy()
         {
-            _mainDirectory = "C:/Sentro/CacheStorage";
+            _mainDirectory = Settings.GetInstance().Setting.Cache.Path;
             Init();
         }
         public static FileHierarchy GetInstance()
@@ -21,32 +21,59 @@ namespace Sentro.Utilities
 
         private void Init()
         {
-            // Create Main folder if not exist
-            if (!Directory.Exists(_mainDirectory))
-                Directory.CreateDirectory(_mainDirectory);
-            string level1path, level2path;
-            // Create first level folders
             for (int i = 0; i < 16; i++)
-            {
-                level1path = _mainDirectory + "/" + i.ToString("X");
-                if (!Directory.Exists(level1path))
-                    Directory.CreateDirectory(level1path);
-                // Create second level folders
+            {                                            
                 for (int k = 0; k < 256; k++)
-                {
-                    level2path = level1path + "/" + k.ToString("X2");
-                    if (!Directory.Exists(level2path))
-                        Directory.CreateDirectory(level2path);
-                }
-                //Console.WriteLine(level1path + " ..Created");
-
-            }
-           
+                {                    
+                    var folder = $"{_mainDirectory}/{i.ToString("X")}/{k.ToString("X2")}";
+                    Directory.CreateDirectory(folder);
+                }                
+            }           
         }
 
-        public void WriteToTemp(string hash, ref byte[] bytes)
+        public bool Exist(string hash)
         {
-            throw new NotImplementedException();                        
+            return File.Exists(MapToFilePath(hash));
+        }
+
+        public bool ExistInTemp(string hash)
+        {
+            return File.Exists(MapToTempPath(hash));
+        }
+
+        public byte[] ReadFromTemp(string hash)
+        {
+            return File.ReadAllBytes(MapToTempPath(hash));
+        }
+
+        public byte[] Read(string hash)
+        {
+            return File.ReadAllBytes(MapToFilePath(hash));
+        }
+
+        public void WriteToTemp(string hash,byte[] bytes)
+        {
+            File.WriteAllBytes(MapToTempPath(hash),bytes);                  
+        }
+
+        public void Write(string hash, byte[] bytes)
+        {
+            File.WriteAllBytes(MapToFilePath(hash), bytes);
+        }
+
+        public void MoveFromTemp(string hash)
+        {
+            File.Move(MapToTempPath(hash), MapToFilePath(hash));
+        }
+
+        private string MapToTempPath(string hash)
+        {
+            return $"{_mainDirectory}/temp/{hash}";
+        }
+
+        private string MapToFilePath(string hash)
+        {
+            return $"{_mainDirectory}/{hash[0]}/{hash.Substring(1, 2)}/{hash.Substring(3)}/{hash}";
         }
     }
 }

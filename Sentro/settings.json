@@ -1,17 +1,25 @@
 ﻿{
-  "arpspoofer": {
-    "frequency": "30000"
+  "ArpSpoofer": {
+    "Frequency": "30000"
   },
   
-  "settingsReloadRate": "60000",
+  "SettingsReloadRate": "60000",
 
-  "user": {
-    "interfaceIP": "192.168.1.11",
-    "targetAll": "false",
-    "targetIPs": [
-      "192.168.1.1",
-      "192.168.1.7"
+  "User": {
+    "InterfaceIP": "192.168.1.11",
+    "TargetAll": "false",
+    "TargetIPs": [
+      "192.168.1.5" 
     ]
+  },
+
+  "Cache": {
+    "Path": "G:\\SentroCache"
+  },
+
+  "Traffic": {
+    "InBufferSize": "5242880", //5MB
+    "OutBufferSize": "2048" //1KB
   }
 
 }
