@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Divert.Net;
 using Sentro.ARP;
-using Sentro.Utilities;
 using Sentro.Cache;
+using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
@@ -27,31 +25,34 @@ namespace Sentro.Traffic
         private FileLogger _flogger;
         private CacheManager _cacheManager;
         private ArpSpoofer _arpSpoofer;
+        private Diversion _diversionNormal, _diversionForward;
 
         private TrafficManager()
         {
             _logger = ConsoleLogger.GetInstance();
-            _cacheManager = CacheManager.GetInstance();     
-            _arpSpoofer = ArpSpoofer.GetInstance();   
-            _flogger = new FileLogger(AppDomain.CurrentDomain.BaseDirectory, "test1.txt");           
+            _cacheManager = CacheManager.GetInstance();
+            _arpSpoofer = ArpSpoofer.GetInstance();
+            _flogger = FileLogger.GetInstance();
         }
 
         public static TrafficManager GetInstance()
         {
             return _trafficManager ?? (_trafficManager = new TrafficManager());
         }
-     
+
         private void Divert(bool forwardMode)
         {
             var divertDict = new Dictionary<Connection, ConnectionBuffer>();
-            Diversion diversion;
-
+            Diversion diversion = forwardMode ? _diversionForward : _diversionNormal;
             string filter = "tcp.DstPort == 80 or tcp.SrcPort == 80";
             //string filter = "tcp.PayloadLength > 0 and (tcp.DstPort == 80 or tcp.DstPort == 443 or tcp.SrcPort == 443 or tcp.SrcPort == 80)";
 
             try
             {
-                diversion = Diversion.Open(filter, forwardMode ? DivertLayer.NetworkForward : DivertLayer.Network, 100,0);
+                diversion = Diversion.Open(filter, forwardMode ? DivertLayer.NetworkForward : DivertLayer.Network, 100,
+                    0);
+                diversion.SetParam(DivertParam.QueueLength, 4096);
+                diversion.SetParam(DivertParam.QueueTime, 1024);
             }
             catch (Exception e)
             {
@@ -62,7 +63,7 @@ namespace Sentro.Traffic
             if (!diversion.Handle.Valid)
             {
                 _flogger.Debug(Tag,
-                    $"Failed to open divert handle with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
+                    $"Failed to open divert handle with error {Marshal.GetLastWin32Error()}");
                 return;
             }
 
@@ -70,7 +71,7 @@ namespace Sentro.Traffic
 
             byte[] buffer = new byte[65535];
 
-            uint receiveLength, sendLength;                             
+            uint receiveLength, sendLength;
 
             IPHeader ipHeader = new IPHeader();
             TCPHeader tcpHeader = new TCPHeader();
@@ -86,17 +87,17 @@ namespace Sentro.Traffic
                     if (!diversion.Receive(buffer, address, ref receiveLength))
                     {
                         _flogger.Debug(Tag,
-                            $"Failed to receive packet with error {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
+                            $"Failed to receive packet with error {Marshal.GetLastWin32Error()}");
                         continue;
                     }
 
                     diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
-                    
+
                     var connection = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort,
                         ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
-                   
+
                     if (divertDict.ContainsKey(connection)) //already started caching
-                    {                       
+                    {
 
                         /*pass - no need to calcualte checksum*/
                         diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
@@ -110,15 +111,15 @@ namespace Sentro.Traffic
                             /*end of http response*/
                             if (tcpHeader.Psh == 1)
                             {
-                                var offset = Offset(tcpHeader, ipHeader);
+                                var offset = HelperFunctions.Offset(tcpHeader, ipHeader);
 
                                 if (receiveLength - offset > 0
-                                    && IsHttpResponse(ref buffer, offset, receiveLength))
+                                    && HelperFunctions.IsHttpResponse(buffer, offset, receiveLength))
                                 {
                                     var request = connectionBuffer.Request();
                                     var response = connectionBuffer.Response();
-                                    _cacheManager.Cache(request,response);
-                                    connectionBuffer.Reset();                                
+                                    _cacheManager.Cache(request, response);
+                                    connectionBuffer.Reset();
                                     divertDict.Remove(connection);
                                 }
                             }
@@ -139,9 +140,9 @@ namespace Sentro.Traffic
                         else
                         {
                             //detect non cacheable and incomplete
-                            var offset = Offset(tcpHeader, ipHeader);
+                            var offset = HelperFunctions.Offset(tcpHeader, ipHeader);
                             var strangePacket = receiveLength - offset <= 0;
-                            if (tcpHeader.Psh == 0 || strangePacket || !IsHttpGet(ref buffer, offset, receiveLength))
+                            if (tcpHeader.Psh == 0 || strangePacket || !HelperFunctions.IsHttpGet(buffer, offset, receiveLength))
                             {
                                 diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
                             }
@@ -152,9 +153,9 @@ namespace Sentro.Traffic
                                 if (response != null)
                                 {
                                     response.SetAddressesFrom(request);
-                                    var packets = response.Packets();
+                                    var responsePackets = response.Packets();
                                     address.Direction = DivertDirection.Outbound;
-                                    foreach (var packet in packets)
+                                    foreach (var packet in responsePackets)
                                     {
                                         diversion.CalculateChecksums(packet, (uint) packet.Length, 0);
                                         diversion.SendAsync(packet, (uint) packet.Length, address, ref sendLength);
@@ -169,41 +170,24 @@ namespace Sentro.Traffic
                                 }
                             }
                         }
-                    }                      
+                    }
                 }
             }
             catch (Exception e)
             {
-                _flogger.Error(Tag,e.ToString());
+                _flogger.Error(Tag, e.ToString());
             }
 
             diversion.Close();
         }
 
-
-        private static int Offset(TCPHeader tcpHeader, IPHeader ipHeader)
+        public void Parse(byte[] bytes, uint legnth,out TCPHeader tcpHeader,out IPHeader ipHeader)
         {
-            if (tcpHeader == null || ipHeader == null)
-                return 0;
-
-            return tcpHeader.HeaderLength*4 + ipHeader.HeaderLength*4;
-        }
-
-        private bool IsHttpGet(ref byte[] packetBytes, int offset,uint length)
-        {
-            string http = Encoding.ASCII.GetString(packetBytes, offset,(int)length - offset);                     
-            return Regex.IsMatch(http, CommonRegex.HttpGet);
-        }
-
-        private bool IsHttpResponse(ref byte[] packetBytes, int offset,uint length)
-        {
-            string http = Encoding.ASCII.GetString(packetBytes, offset, (int)length - offset);            
-            return Regex.IsMatch(http, CommonRegex.HttpResonse);
-        }
-
-        private bool IsArpTarget(string ip)
-        {            
-            return _arpSpoofer.State() != ArpSpoofer.Status.Stopped && _arpSpoofer.IsTargeted(ip);
+            var tcp = new TCPHeader();
+            var ip = new IPHeader();
+            _diversionNormal?.ParsePacket(bytes, legnth, ip, null, null, null, tcp, null);
+            tcpHeader = tcp;
+            ipHeader = ip;
         }
 
         public void Stop()
@@ -221,5 +205,11 @@ namespace Sentro.Traffic
             //Task.Run(() => Divert(true));
             Task.Run(() => Divert(false));            
         }
+
+        private bool IsArpTarget(string ip)
+        {
+            return _arpSpoofer.State() != ArpSpoofer.Status.Stopped && _arpSpoofer.IsTargeted(ip);
+        }
+
     }
 }

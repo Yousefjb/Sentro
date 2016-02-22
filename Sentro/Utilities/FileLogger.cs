@@ -8,28 +8,37 @@ namespace Sentro.Utilities
     {
         public const string Tag = "FileLogger";
         private readonly StreamWriter _file;
+        private static FileLogger _fileLogger;
 
-        public FileLogger(string path, string name)
+        public static FileLogger GetInstance()
         {
-            _file = new StreamWriter(path+ "\\" + name);            
+            return _fileLogger ?? (_fileLogger = new FileLogger());
         }
 
+        private FileLogger()
+        {
+            var fileHierarchy = FileHierarchy.GetInstance();            
+            _file = new StreamWriter(fileHierarchy.LogsDirectory+"/"+DateTime.UtcNow,true);
+            _file.AutoFlush = true;
+        }
+       
+
         public void Debug(string tag, string message)
-        {  
-            _file.WriteLine($"Debug {tag} {message}");
-            _file.Flush();
+        {
+            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            _file.WriteLine($"{time} Debug {tag} {message}");            
         }
 
         public void Info(string tag, string message)
         {
-            _file.WriteLine($"Info {tag} {message}");
-            _file.Flush();
+            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            _file.WriteLine($"{time} Info {tag} {message}");            
         }
 
         public void Error(string tag, string message)
         {
-            _file.WriteLine($"Error {tag} {message}");
-            _file.Flush();
+            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            _file.WriteLine($"{time} Error {tag} {message}");            
         }        
 
         public void Log(LivePacketDevice networkInterface)

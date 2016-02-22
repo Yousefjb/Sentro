@@ -25,6 +25,7 @@ namespace Sentro.Cache
         public string Normalize(string url)
         {
             
+            Console.WriteLine(url);
             url = new UriBuilder(url).Uri.ToString();
 
             // Removing directory index (index pages)

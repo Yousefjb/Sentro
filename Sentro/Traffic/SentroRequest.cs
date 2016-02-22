@@ -8,8 +8,8 @@ namespace Sentro.Traffic
 {
     internal class SentroRequest : TcpStreem
     {
-        public const string Tag = "SentroHttpRequest";   
-        private string _requestUri = "";
+        public new const string Tag = "SentroRequest";   
+        private string _requestUri = "";        
 
 
         public SentroRequest(byte[] bytes, int length)
@@ -23,16 +23,25 @@ namespace Sentro.Traffic
 
         }
 
+        public static SentroRequest CreateFromBytes(byte[] bytes, int length)
+        {
+            var request = new SentroRequest();
+            request.LoadFrom(bytes, length);
+            return request;
+        }
+
         public string RequestUri()
         {
             if (_requestUri.Length != 0)
                 return _requestUri;
 
-            var ascii = Encoding.ASCII.GetString(Buffer[0]);
+            int offset = Offset();
+            var ascii = Encoding.ASCII.GetString(Buffer[0],offset,Buffer[0].Length - offset);
             var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch);
             string path = result.Value;
             string host = result.NextMatch().Value;
             _requestUri = host + path;
+            FileLogger.GetInstance().Debug(Tag,_requestUri);
             return _requestUri;
         }
 

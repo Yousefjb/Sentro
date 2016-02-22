@@ -99,6 +99,7 @@
     <Compile Include="ARP\IArpSpoofer.cs" />
     <Compile Include="Cache\CacheManager.cs" />
     <Compile Include="Cache\Normalizer.cs" />
+    <Compile Include="Traffic\HelperFunctions.cs" />
     <Compile Include="Traffic\SentroRequest.cs" />
     <Compile Include="Traffic\SentroResponse.cs" />
     <Compile Include="Traffic\TcpStreem.cs" />

@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 
 
 namespace Sentro.Utilities
@@ -7,11 +6,15 @@ namespace Sentro.Utilities
     class FileHierarchy
     {
         private readonly string _mainDirectory;
-
+        private readonly string _tempDirectory;
+        private readonly string _logsDirectory;
         private static FileHierarchy _fileHierarchy;
+
         private FileHierarchy()
         {
             _mainDirectory = Settings.GetInstance().Setting.Cache.Path;
+            _tempDirectory = _mainDirectory + "/temp";
+            _logsDirectory = _mainDirectory + "/logs";
             Init();
         }
         public static FileHierarchy GetInstance()
@@ -28,8 +31,16 @@ namespace Sentro.Utilities
                     var folder = $"{_mainDirectory}/{i.ToString("X")}/{k.ToString("X2")}";
                     Directory.CreateDirectory(folder);
                 }                
-            }           
+            }
+
+            Directory.CreateDirectory(_tempDirectory);
+            Directory.CreateDirectory(_logsDirectory);
         }
+
+
+        public string TempDirectory => _tempDirectory;
+        public string LogsDirectory => _logsDirectory;
+        public string MainDirectory => _mainDirectory;
 
         public bool Exist(string hash)
         {
@@ -68,7 +79,7 @@ namespace Sentro.Utilities
 
         private string MapToTempPath(string hash)
         {
-            return $"{_mainDirectory}/temp/{hash}";
+            return $"{_tempDirectory}/{hash}";
         }
 
         private string MapToFilePath(string hash)

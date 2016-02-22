@@ -54,7 +54,7 @@ namespace Sentro.Cache
             if (_fileHierarchy.ExistInTemp(hash))
             {
                 var bytes = _fileHierarchy.ReadFromTemp(hash);
-                return new SentroResponse(bytes, bytes.Length);
+                return SentroResponse.CreateFromBytes(bytes, bytes.Length);
             }
 
             return null;//TODO:remove this line

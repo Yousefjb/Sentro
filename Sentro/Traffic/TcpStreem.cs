@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Divert.Net;
 
 namespace Sentro.Traffic
 {
@@ -9,7 +10,9 @@ namespace Sentro.Traffic
         protected List<byte[]> Buffer;
         protected int MaxBufferSize;
         protected int CurrentBufferSize;
-        protected int TotalSize;        
+        protected int TotalSize;
+        private TCPHeader tcpHeader;
+        private IPHeader ipHeader;             
 
         protected TcpStreem(byte[] bytes, int length,int maxBufferSize)
         {
@@ -69,55 +72,103 @@ namespace Sentro.Traffic
             return bytes;
         }
 
+        protected void LoadFrom(byte[] bytes, int length)
+        {
+            int index = 0;
+            while (index < length)
+            {
+                var packetLength = BitConverter.ToInt32(bytes, index);
+                index += 4;
+                Push(bytes, index, packetLength);
+                index += packetLength;
+            }
+        }
+
         public void Dispose()
         {
             Buffer.Clear();
             Buffer = null;
         }
 
-        public void SetAddressesFrom(TcpStreem streem)
+        private void ReplaceInAll(byte[] bytes, int startIndex)
         {
-            throw new NotImplementedException();
+            for (int i = 0; i < Buffer.Count; i++)
+            {
+                for (int j = 0; j < bytes.Length; j++)
+                    Buffer[0][startIndex + j] = bytes[j];
+            }
+        }
+
+        private void Replace(byte[] source, int sourceStart, byte[] target, int targetStart)
+        {
+            var count = source.Length - sourceStart;
+            for (int i = 0; i < count; i++)
+            {
+                target[targetStart + i] = source[sourceStart + i];
+            }
         }
 
         public byte[] SourceIp()
         {
-            throw new NotImplementedException();
+            if (ipHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
+            return ipHeader?.SourceAddress.GetAddressBytes();
         }
 
         public void SetSourceIp(byte[] sourceIp)
         {
-            throw new NotImplementedException();
+            ReplaceInAll(sourceIp,12);
         }
 
         public byte[] SourcePort()
         {
-            throw new NotImplementedException();
+            if (tcpHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
+            return tcpHeader != null ? BitConverter.GetBytes(tcpHeader.SourcePort) : null;
         }
 
         public void SetSourcePort(byte[] sourcePort)
         {
-            throw new NotImplementedException();
+            foreach (byte[] packet in Buffer)
+            {
+                var tcpStartPos = BitConverter.ToInt16(packet, 2) + 20;
+                Replace(sourcePort, 0, packet, tcpStartPos);
+            }
         }
 
         public byte[] DestinationIp()
         {
-            throw new NotImplementedException();
+            if (ipHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint)Buffer[0].Length, out tcpHeader, out ipHeader);
+            return ipHeader?.DestinationAddress.GetAddressBytes();
         }
 
         public void SetDestinationIp(byte[] destinationIp)
         {
-            throw new NotImplementedException();
+            ReplaceInAll(destinationIp, 16);
         }
 
         public byte[] DestinationPort()
         {
-            throw new NotImplementedException();
+            if (tcpHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
+            return tcpHeader != null ? BitConverter.GetBytes(tcpHeader.DestinationPort) : null;
         }
 
         public void SetDestinationPort(byte[] destinationPort)
         {
-            throw new NotImplementedException();
+            foreach (byte[] packet in Buffer)
+            {
+                var tcpStartPos = BitConverter.ToInt16(packet, 2) + 22;
+                Replace(destinationPort, 0, packet, tcpStartPos);
+            }
+        }
+
+        public int Offset()
+        {
+            if (tcpHeader == null || ipHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
+            return HelperFunctions.Offset(tcpHeader, ipHeader);
         }
     }
 }
