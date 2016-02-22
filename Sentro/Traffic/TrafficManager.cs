@@ -20,16 +20,14 @@ namespace Sentro.Traffic
     {
         public const string Tag = "TrafficManager";
         private static TrafficManager _trafficManager;
-        private bool _running = false;
-        private ConsoleLogger _logger;
+        private bool _running;        
         private FileLogger _flogger;
         private CacheManager _cacheManager;
         private ArpSpoofer _arpSpoofer;
         private Diversion _diversionNormal, _diversionForward;
 
         private TrafficManager()
-        {
-            _logger = ConsoleLogger.GetInstance();
+        {            
             _cacheManager = CacheManager.GetInstance();
             _arpSpoofer = ArpSpoofer.GetInstance();
             _flogger = FileLogger.GetInstance();
@@ -62,8 +60,8 @@ namespace Sentro.Traffic
 
             if (!diversion.Handle.Valid)
             {
-                _flogger.Debug(Tag,
-                    $"Failed to open divert handle with error {Marshal.GetLastWin32Error()}");
+                //_flogger.Debug(Tag,
+                //    $"Failed to open divert handle with error {Marshal.GetLastWin32Error()}");
                 return;
             }
 
@@ -77,8 +75,7 @@ namespace Sentro.Traffic
             TCPHeader tcpHeader = new TCPHeader();
 
             try
-            {
-                _flogger.Debug(Tag, "started traffic manager\n");
+            {                
                 while (_running)
                 {
                     receiveLength = 0;
@@ -86,12 +83,12 @@ namespace Sentro.Traffic
 
                     if (!diversion.Receive(buffer, address, ref receiveLength))
                     {
-                        _flogger.Debug(Tag,
-                            $"Failed to receive packet with error {Marshal.GetLastWin32Error()}");
+                        //_flogger.Debug(Tag,
+                        //    $"Failed to receive packet with error {Marshal.GetLastWin32Error()}");
                         continue;
                     }
 
-                    diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
+                    diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);                    
 
                     var connection = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort,
                         ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
@@ -192,8 +189,7 @@ namespace Sentro.Traffic
 
         public void Stop()
         {
-            _running = false;
-            _flogger.Debug(Tag, "stoped traffic manager");            
+            _running = false;                       
         }
 
         public void Start()

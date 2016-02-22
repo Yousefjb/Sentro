@@ -39,12 +39,7 @@ namespace Sentro.Utilities
         {
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
             _file.WriteLine($"{time} Error {tag} {message}");            
-        }        
-
-        public void Log(LivePacketDevice networkInterface)
-        {
-            throw new NotImplementedException();
-        }
+        }               
 
         public void Dispose()
         {

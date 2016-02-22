@@ -40,8 +40,7 @@ namespace Sentro.Traffic
             var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch);
             string path = result.Value;
             string host = result.NextMatch().Value;
-            _requestUri = host + path;
-            FileLogger.GetInstance().Debug(Tag,_requestUri);
+            _requestUri = host + path;            
             return _requestUri;
         }
 

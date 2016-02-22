@@ -41,8 +41,7 @@ namespace Sentro.Utilities
             }
             catch (Exception e)
             {
-                ConsoleLogger.GetInstance().Error(Tag, e.Message);
-                ConsoleLogger.GetInstance().Error(Tag,e.StackTrace);
+                 
             }
         }
     }    

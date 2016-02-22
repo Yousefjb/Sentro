@@ -4,6 +4,7 @@ using Divert.Net;
 
 namespace Sentro.Traffic
 {
+    //TODO : Use direct access to TcpHeader and IpHeader to modify source and dest addresses
     class TcpStreem
     {
         public const string Tag = "TcpStreem";

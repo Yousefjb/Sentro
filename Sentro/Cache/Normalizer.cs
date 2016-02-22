@@ -23,12 +23,11 @@ namespace Sentro.Cache
         /// <param name="url">the url to normalize</param>
         /// <returns>Normalized Url</returns>
         public string Normalize(string url)
-        {
-            
-            Console.WriteLine(url);
+        {                        
             url = new UriBuilder(url).Uri.ToString();
 
             // Removing directory index (index pages)
+            // Not a good idea, any of these might not be the default page
             url = url.Replace("Default.asp", "");            
             url = url.Replace("index.php", "");
             url = url.Replace("index.html", "");

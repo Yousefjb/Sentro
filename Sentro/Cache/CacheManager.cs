@@ -1,6 +1,4 @@
 ﻿using Sentro.Utilities;
-using System;
-using System.IO;
 using Sentro.Traffic;
 
 namespace Sentro.Cache

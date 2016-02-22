@@ -14,8 +14,7 @@ namespace Sentro
     {
         public const string Tag = "Program";     
         private static void Main(string[] args)
-        {
-            ILogger logger = ConsoleLogger.GetInstance();
+        {            
             Console.Title = "Sentro";
             Console.WriteLine(Sento);
             MainPoint:
@@ -49,8 +48,7 @@ namespace Sentro
                                 break;
                             case "exit":
                                 break;                           
-                            default:
-                                logger.Info(Tag, $"{commands[0]} undefined");
+                            default:                                
                                 break;
                         }
 
@@ -61,13 +59,10 @@ namespace Sentro
             }
             catch (TimeoutException singleProcessException)
             {
-                logger.Error(Tag,singleProcessException.Message);
+                                
             }
             catch (Exception e)
-            {
-                //TODO: write try catch in each class insted of catching all here
-                logger.Error(Tag, e.Message);
-                logger.Info(Tag, e.StackTrace);
+            {                                
                 goto MainPoint;
             }
         }
@@ -88,8 +83,7 @@ namespace Sentro
         #endregion
 
         private async static void CleanUpSentro()
-        {
-            ConsoleLogger.GetInstance().Debug(Tag,"stopping .. ");
+        {            
             var arp = ArpSpoofer.GetInstance();
             var state = arp.State();
 

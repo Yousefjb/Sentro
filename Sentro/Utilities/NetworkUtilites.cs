@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using PcapDotNet.Core;
 using PcapDotNet.Core.Extensions;
-using PcapDotNet.Packets.IpV4;
 
 namespace Sentro.Utilities
 {
@@ -35,9 +33,7 @@ namespace Sentro.Utilities
                     CreateNoWindow = true
                 }
             };
-            pProcess.Start();     
-            
-            ConsoleLogger.GetInstance().Debug(Tag,$"tried to insert {ipAddress} with {macAddress}");       
+            pProcess.Start();                               
         }
 
         public static void DeleteStaticMac(NetworkInterface nic,string ipAddress)
@@ -56,8 +52,7 @@ namespace Sentro.Utilities
                     CreateNoWindow = true
                 }
             };
-            pProcess.Start();
-            ConsoleLogger.GetInstance().Debug(Tag, $"tried to delete {ipAddress}");
+            pProcess.Start();            
         }
 
         /*http://stackoverflow.com/questions/12802888/get-a-machines-mac-address-on-the-local-network-from-its-ip-in-c-sharp*/
@@ -87,8 +82,7 @@ namespace Sentro.Utilities
                 macAddress = string.Format("{0}:{1}:{2}:{3}:{4}:{5}",
                     substrings[3].Substring(Math.Max(0, substrings[3].Length - 2)), substrings[4], substrings[5],
                     substrings[6], substrings[7], substrings[8].Substring(0, 2));
-
-            ConsoleLogger.GetInstance().Debug(Tag,$"{macAddress} belongs to this {ipAddress}");
+            
             return macAddress;
         }
 

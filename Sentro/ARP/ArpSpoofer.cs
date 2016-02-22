@@ -42,8 +42,7 @@ namespace Sentro.ARP
         private Status _status = Status.Off;
 
         private ArpSpoofer()
-        {
-            ConsoleLogger.GetInstance().Debug(Tag, "initializing");
+        {            
             _targetsIpToMac = new Dictionary<string, string>();
             _excludedTargets = new HashSet<string>();
             _targetsPacketBuilders = new Dictionary<string, PacketBuilder>();
@@ -57,16 +56,14 @@ namespace Sentro.ARP
         }
 
         private void InsertAllStaticMacAddresses(NetworkInterface networkInterface)
-        {
-            ConsoleLogger.GetInstance().Debug(Tag, "inserting static mac addresses .. ");                       
+        {                                
             NetworkUtilites.InsertStaticMac(networkInterface, _gatewayIp, _gatewayMac);
             foreach (var t in _targetsIps)
                 NetworkUtilites.InsertStaticMac(networkInterface, t, _targetsIpToMac[t]);
         }
 
         private void DeleteAllStaticMacAddresses(NetworkInterface networkInterface)
-        {
-            ConsoleLogger.GetInstance().Debug(Tag, "deleting static mac addresses .. ");
+        {            
             NetworkUtilites.DeleteStaticMac(networkInterface, _gatewayIp);
             foreach (var t in _targetsIps)
                 NetworkUtilites.DeleteStaticMac(networkInterface, t);
@@ -74,8 +71,7 @@ namespace Sentro.ARP
         }
 
         private void SpoofAllFakeAddresses(NetworkInterface networkInterface, PacketCommunicator communicator)
-        {            
-            ConsoleLogger.GetInstance().Debug(Tag, "spoofing with arp requests ..");
+        {                        
             foreach (string target in _targetsIps)
             {
                 if (MakeSureTargetIsReadyToBeAttacked(networkInterface, target) == false)
@@ -94,8 +90,7 @@ namespace Sentro.ARP
         }
 
         private void SpoofRealAddresses(PacketCommunicator communicator)
-        {
-            ConsoleLogger.GetInstance().Debug(Tag, "spoofing with real requests ..");
+        {            
             foreach (string target in _targetsIps)
             {                
                 SpoofGatewayFinalRequest(communicator, target);
@@ -114,8 +109,7 @@ namespace Sentro.ARP
             Task.Run(() =>
             {
                 /*convert to array so that adding a new ip will not affect the for loop*/
-                string[] targetsArray = _targetsIps.ToArray();
-                var logger = ConsoleLogger.GetInstance();
+                string[] targetsArray = _targetsIps.ToArray();                
                 _status = Status.Started;
                 while (_status == Status.Started || _status == Status.Starting || _status == Status.Paused)
                 {
@@ -129,8 +123,7 @@ namespace Sentro.ARP
                         targetsArray = _targetsIps.ToArray();
 
                     foreach (string target in targetsArray)
-                    {
-                        logger.Debug(Tag, $"spoofing {target} with reply");
+                    {                        
                         if (MakeSureTargetIsReadyToBeAttacked(networkInterface, target) == false)
                             continue;
                         SpoofGateway(communicator, target);
@@ -138,25 +131,21 @@ namespace Sentro.ARP
 
                     }
 
-                    var delayDuration = Convert.ToInt32(Settings.GetInstance().Setting.ArpSpoofer.Frequency);
-                    logger.Debug(Tag, $"sleeping for {delayDuration/1000}s");
+                    var delayDuration = Convert.ToInt32(Settings.GetInstance().Setting.ArpSpoofer.Frequency);                    
                     Task.Delay(delayDuration).Wait();
                 }
             }).Wait();            
         }
 
         public void Spoof(string myIp, HashSet<string> targets)//hashset is used to eliminate duplicate IPs
-        {
-            var logger = ConsoleLogger.GetInstance();
+        {            
 
             if (_status != Status.Off)
-            {
-                logger.Info(Tag,"Single instance of arp spoofer is allowed to run");
+            {                
                 return;                
             }            
                         
-            _status = Status.Starting;
-            logger.Debug(Tag, "arp attack starting ..");
+            _status = Status.Starting;            
 
             var livePacketDevice = NetworkUtilites.GetLivePacketDevice(myIp);                       
             
@@ -166,8 +155,7 @@ namespace Sentro.ARP
             _gatewayIp = NetworkUtilites.GetGatewayIp(livePacketDevice);
             _gatewayMac = NetworkUtilites.GetMacAddress(_gatewayIp);
 
-            /*targets rarely change their mac address, also this function considerd costly*/            
-            logger.Debug(Tag, "looking for mac addresses ..");
+            /*targets rarely change their mac address, also this function considerd costly*/                        
             foreach (var ip in targets)
                 _targetsIpToMac.Add(ip, NetworkUtilites.GetMacAddress(ip));
 
@@ -209,16 +197,14 @@ namespace Sentro.ARP
         }
 
         private void FightBackAnnoyingBroadcasts(LivePacketDevice nic)
-        {
-            ILogger logger = ConsoleLogger.GetInstance();
+        {            
             var ether = new EthernetLayer
             {
                 Source = new MacAddress(_myMac),
                 Destination = new MacAddress("FF:FF:FF:FF:FF:FF"),
                 EtherType = EthernetType.None
             };
-
-            logger.Debug(Tag, "hunting arp broadcasts ..");
+            
 
             PacketCommunicator communicator = nic.Open(500, PacketDeviceOpenAttributes.None, 50);
             communicator.SetFilter("arp && ether dst ff:ff:ff:ff:ff:ff");

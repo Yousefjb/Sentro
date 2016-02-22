@@ -20,11 +20,6 @@ namespace Sentro.Utilities
         {            
         }
 
-        public void Log(string tag,string level,string message)
-        {
-              
-        }
-
         public void Debug(string tag, string message)
         {
             #if DEBUG
