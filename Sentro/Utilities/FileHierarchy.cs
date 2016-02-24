@@ -1,17 +1,21 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 
 namespace Sentro.Utilities
 {
     class FileHierarchy
     {
+        public const string Tag = "FileHierarchy";
         private readonly string _mainDirectory;
         private readonly string _tempDirectory;
         private readonly string _logsDirectory;
         private static FileHierarchy _fileHierarchy;
+        private static FileLogger _fileLogger;
 
         private FileHierarchy()
         {
+            _fileLogger =FileLogger.GetInstance(); 
             _mainDirectory = Settings.GetInstance().Setting.Cache.Path;
             _tempDirectory = _mainDirectory + "/temp";
             _logsDirectory = _mainDirectory + "/logs";
@@ -24,17 +28,24 @@ namespace Sentro.Utilities
 
         private void Init()
         {
-            for (int i = 0; i < 16; i++)
-            {                                            
-                for (int k = 0; k < 256; k++)
-                {                    
-                    var folder = $"{_mainDirectory}/{i.ToString("X")}/{k.ToString("X2")}";
-                    Directory.CreateDirectory(folder);
-                }                
-            }
+            try
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    for (int k = 0; k < 256; k++)
+                    {
+                        var folder = $"{_mainDirectory}/{i.ToString("X")}/{k.ToString("X2")}";
+                        Directory.CreateDirectory(folder);
+                    }
+                }
 
-            Directory.CreateDirectory(_tempDirectory);
-            Directory.CreateDirectory(_logsDirectory);
+                Directory.CreateDirectory(_tempDirectory);
+                Directory.CreateDirectory(_logsDirectory);
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
+            }
         }
 
 

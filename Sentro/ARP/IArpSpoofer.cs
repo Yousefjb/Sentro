@@ -14,7 +14,7 @@ namespace Sentro.ARP
         void Pause();
         void Resume();
         void Start();
-        void Usage();        
+        string Usage();        
 
     }
 }

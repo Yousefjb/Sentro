@@ -14,95 +14,124 @@ namespace Sentro.Utilities
     public class NetworkUtilites
     {
         public const string Tag = "NetworkUtilites";
+        private static FileLogger _fileLogger = FileLogger.GetInstance();
         
         public static void InsertStaticMac(NetworkInterface nic,string ipAddress,string macAddress)
-        {            
-            /*netish interface ip add neightbors "Network type" Ip mac*/
-            macAddress = macAddress.Replace(':', '-').ToLower();
-            var networkName = nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet
-                ? "\"Local Area Connection\""
-                : "\"Wireless Network Connection\"";
-            Process pProcess = new Process
+        {
+            try
             {
-                StartInfo =
+                /*netish interface ip add neightbors "Network type" Ip mac*/
+                macAddress = macAddress.Replace(':', '-').ToLower();
+                var networkName = nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet
+                    ? "\"Local Area Connection\""
+                    : "\"Wireless Network Connection\"";
+                Process pProcess = new Process
                 {
-                    FileName = "netsh",
-                    Arguments = "interface ip add neighbors "+ networkName + " " + ipAddress + " " + macAddress,                   
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                }
-            };
-            pProcess.Start();                               
+                    StartInfo =
+                    {
+                        FileName = "netsh",
+                        Arguments = "interface ip add neighbors " + networkName + " " + ipAddress + " " + macAddress,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                pProcess.Start();
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
+            }
         }
 
         public static void DeleteStaticMac(NetworkInterface nic,string ipAddress)
         {
-            var networkName = nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet
-                ? "\"Local Area Connection\""
-                : "\"Wireless Network Connection\"";
-            Process pProcess = new Process
+            try
             {
-                StartInfo =
+                var networkName = nic.NetworkInterfaceType == NetworkInterfaceType.Ethernet
+                    ? "\"Local Area Connection\""
+                    : "\"Wireless Network Connection\"";
+                Process pProcess = new Process
                 {
-                    FileName = "netsh",
-                    Arguments = "interface ip delete neighbors "+ networkName + " " + ipAddress,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                }
-            };
-            pProcess.Start();            
+                    StartInfo =
+                    {
+                        FileName = "netsh",
+                        Arguments = "interface ip delete neighbors " + networkName + " " + ipAddress,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                pProcess.Start();
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
+            }
         }
 
         /*http://stackoverflow.com/questions/12802888/get-a-machines-mac-address-on-the-local-network-from-its-ip-in-c-sharp*/
         public static string GetMacAddress(string ipAddress)
         {
-            Ping ping = new Ping();//Better to use arp request
-            ping.Send(ipAddress);
-            Process pProcess = new Process
+            try
             {
-                StartInfo =
+                Ping ping = new Ping(); //Better to use arp request
+                ping.Send(ipAddress);
+                Process pProcess = new Process
                 {
-                    FileName = "arp",
-                    Arguments = "-a " + ipAddress,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                }
-            };
-            pProcess.Start();
-            var strOutput = pProcess.StandardOutput.ReadToEnd();
-            var substrings = strOutput.Split('-');
-            var macAddress="";
+                    StartInfo =
+                    {
+                        FileName = "arp",
+                        Arguments = "-a " + ipAddress,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                pProcess.Start();
+                var strOutput = pProcess.StandardOutput.ReadToEnd();
+                var substrings = strOutput.Split('-');
+                var macAddress = "";
 
-            if (substrings.Length < 8)
-                macAddress = "";
-            else
-                macAddress = string.Format("{0}:{1}:{2}:{3}:{4}:{5}",
-                    substrings[3].Substring(Math.Max(0, substrings[3].Length - 2)), substrings[4], substrings[5],
-                    substrings[6], substrings[7], substrings[8].Substring(0, 2));
-            
-            return macAddress;
+                if (substrings.Length < 8)
+                    macAddress = "";
+                else
+                    macAddress = string.Format("{0}:{1}:{2}:{3}:{4}:{5}",
+                        substrings[3].Substring(Math.Max(0, substrings[3].Length - 2)), substrings[4], substrings[5],
+                        substrings[6], substrings[7], substrings[8].Substring(0, 2));
+
+                return macAddress;
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
+                return "";
+            }
         }
 
         public static uint GetSubnetMask(NetworkInterface adapter, string address)
         {
-
-            foreach (
-                UnicastIPAddressInformation unicastIpAddressInformation in adapter.GetIPProperties().UnicastAddresses)
+            try
             {
-                if (unicastIpAddressInformation.Address.AddressFamily == AddressFamily.InterNetwork)
+                foreach (
+                    UnicastIPAddressInformation unicastIpAddressInformation in
+                        adapter.GetIPProperties().UnicastAddresses)
                 {
-                    if (address.Equals(unicastIpAddressInformation.Address.ToString()))
+                    if (unicastIpAddressInformation.Address.AddressFamily == AddressFamily.InterNetwork)
                     {
-                        var bytes = unicastIpAddressInformation.IPv4Mask.GetAddressBytes();
-                        Array.Reverse(bytes);
-                        return BitConverter.ToUInt32(bytes,0);
+                        if (address.Equals(unicastIpAddressInformation.Address.ToString()))
+                        {
+                            var bytes = unicastIpAddressInformation.IPv4Mask.GetAddressBytes();
+                            Array.Reverse(bytes);
+                            return BitConverter.ToUInt32(bytes, 0);
+                        }
                     }
                 }
             }
-
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());                
+            }
             return 0;
         }
 
@@ -138,27 +167,42 @@ namespace Sentro.Utilities
 
         public static string GetGatewayIp(LivePacketDevice nic)
         {
-            var gatewayIpAddressInformation = nic.GetNetworkInterface().GetIPProperties().GatewayAddresses.FirstOrDefault();
-            var result = gatewayIpAddressInformation?.Address.MapToIPv4().ToString() ?? "";
-            ConsoleLogger.GetInstance().Debug(Tag,result);
-            return result;
+            try
+            {
+                var gatewayIpAddressInformation =
+                    nic.GetNetworkInterface().GetIPProperties().GatewayAddresses.FirstOrDefault();
+                var result = gatewayIpAddressInformation?.Address.MapToIPv4().ToString() ?? "";
+                ConsoleLogger.GetInstance().Debug(Tag, result);
+                return result;
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
+                return "";
+            }
         }
 
         public static LivePacketDevice GetLivePacketDevice(string ip)
         {
-            var devices = LivePacketDevice.AllLocalMachine;
-            foreach (var device in devices)
+            try
             {
-                foreach (var address in device.Addresses)
+                var devices = LivePacketDevice.AllLocalMachine;
+                foreach (var device in devices)
                 {
-                    if (address.Address.Family == SocketAddressFamily.Internet)
-                        if (address.Address.ToString().Replace("Internet ", "").Equals(ip))
-                            return device;
+                    foreach (var address in device.Addresses)
+                    {
+                        if (address.Address.Family == SocketAddressFamily.Internet)
+                            if (address.Address.ToString().Replace("Internet ", "").Equals(ip))
+                                return device;
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
             }
             return null;
         }
-
     }
 }
  

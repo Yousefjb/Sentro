@@ -11,6 +11,7 @@ namespace Sentro.Utilities
     {
         public const string Tag = "Settings";
         private static Settings _settingsInstance;
+        private static FileLogger _fileLogger;
         public dynamic Setting;
 
         public static Settings GetInstance()
@@ -20,12 +21,13 @@ namespace Sentro.Utilities
 
         private Settings()
         {
+            _fileLogger = FileLogger.GetInstance();
             Reload();
             Task.Run(() =>
             {
                 while (true)
                 {
-                    Reload();
+                    Reload();                    
                     Thread.Sleep(Convert.ToInt32(Setting.SettingsReloadRate));
                 }
             });
@@ -41,7 +43,7 @@ namespace Sentro.Utilities
             }
             catch (Exception e)
             {
-                 
+                 _fileLogger.Error(Tag,e.ToString());
             }
         }
     }    

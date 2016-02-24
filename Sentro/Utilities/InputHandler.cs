@@ -2,31 +2,19 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using PcapDotNet.Packets.IpV4;
 using Sentro.ARP;
 using Sentro.Traffic;
 
 namespace Sentro.Utilities
 {
     /*    
-        Responsibility : Take input from user and convert it to command
-        TODO : Reimplement this class
+        Responsibility : Take input from user and convert it to command        
     */
 
     internal class InputHandler
     {
         public const string Tag = "InputHandler";
-
-        public static void Status(string commands)
-        {
-            var arp = ArpSpoofer.GetInstance();
-            Console.WriteLine("ARP Spoofer : {0}", arp.State());
-            Console.WriteLine("Traffic Manager : not implemented");
-            Console.WriteLine("Cache Manager : not implemented");
-            Console.WriteLine("Analyzer : not implemented");
-            Console.WriteLine("SSLstrip : not implemented");
-        }
-
+       
         /**
         usage samples 
 
@@ -42,11 +30,8 @@ namespace Sentro.Utilities
         */
 
         public static void Arp(string command)
-        {
-            //TODO: replace logging with real functions            
-
-            #region arp command regex expressions
-
+        {                              
+            #region arp command regex
             /*start with arp (then space then + or - followed by an ip) at least once */
             const string arpIncludeExclude =
                 @"^arp(?: (?:\+|\-)" + CommonRegex.Ip + @")+$";
@@ -73,16 +58,14 @@ namespace Sentro.Utilities
 
             /*start with arp then space then stop then end of line*/
             const string arpStop = @"^arp stop$";
-
             #endregion
-
-            ILogger logger = ConsoleLogger.GetInstance();
+            
             IArpSpoofer spoofer = ArpSpoofer.GetInstance();
 
             #region expression evaluation against command 
 
             if (Regex.IsMatch(command, arpUsage))
-                spoofer.Usage();
+                Console.WriteLine(spoofer.Usage());
 
             else if (Regex.IsMatch(command, arpPuase))
                 spoofer.Pause();
@@ -100,15 +83,19 @@ namespace Sentro.Utilities
             {
                 var included = Regex.Matches(command, @"(?:\+)" + CommonRegex.Ip);
                 var excluded = Regex.Matches(command, @"(?:\-)" + CommonRegex.Ip);
-                foreach (Match ip in included)
-                {
-                    //spoofer.Include(new IpV4Address(ip.Value));
-                }
+                var hashset = new HashSet<string>();
+
+                foreach (Match ip in included)                
+                    hashset.Add(ip.Value);
+                
+                spoofer.Include(hashset);
+                
+                hashset.Clear();
 
                 foreach (Match ip in excluded)
-                {
-                    //spoofer.Exclude(new IpV4Address(ip.Value));
-                }
+                    hashset.Add(ip.Value);
+
+                spoofer.Exclude(hashset);
             }
 
             else if (Regex.IsMatch(command, arpSpoofSet))
@@ -123,11 +110,11 @@ namespace Sentro.Utilities
             else if (Regex.IsMatch(command, arpSpoofAll))
             {
                 var matches = Regex.Matches(command, CommonRegex.Ip);
-                var ips = (from Match ip in matches select new IpV4Address(ip.Value)).ToList();
+                var ips = (from Match ip in matches select ip.Value).ToList();
                 var myip = ips[0];
                 ips.RemoveAt(0);
-                //spoofer.Spoof(myip);
-                //spoofer.Exclude(ips);
+                spoofer.Spoof(myip);
+                spoofer.Exclude(new HashSet<string>(ips));
             }
 
             #endregion
@@ -135,11 +122,18 @@ namespace Sentro.Utilities
 
         public static void Traffic(string command)
         {
-            if (command.Contains("start")) { 
-                 TrafficManager.GetInstance().Start();                
-            }
-            else if (command.Contains("stop"))
+            #region traffic command regex
+            const string trafficStart =@"^traffic start$";
+            const string trafficStop = @"^traffic stop$";
+            #endregion
+
+            #region expression evaluation against command 
+            if (Regex.IsMatch(command, trafficStart))
+                TrafficManager.GetInstance().Start();
+
+            else if (Regex.IsMatch(command,trafficStop))
                 TrafficManager.GetInstance().Stop();
+            #endregion
         }
 
     }

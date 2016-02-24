@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Divert.Net;
+using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
@@ -12,8 +13,9 @@ namespace Sentro.Traffic
         protected int MaxBufferSize;
         protected int CurrentBufferSize;
         protected int TotalSize;
-        private TCPHeader tcpHeader;
-        private IPHeader ipHeader;             
+        private TCPHeader _tcpHeader;
+        private IPHeader _ipHeader;
+        private static FileLogger _fileLogger;           
 
         protected TcpStreem(byte[] bytes, int length,int maxBufferSize)
         {
@@ -32,6 +34,7 @@ namespace Sentro.Traffic
             MaxBufferSize = maxBufferSize;
             CurrentBufferSize = 0;
             TotalSize = 0;
+            _fileLogger = FileLogger.GetInstance();
         }
         public bool CanHoldMore(int bytesCount)
         {
@@ -45,43 +48,65 @@ namespace Sentro.Traffic
 
         public void Push(byte[] bytes, int startIndex, int length)
         {
-            if (bytes.Length == length && startIndex == 0)
-                Buffer.Add(bytes);
-            else
+            try
             {
-                var copy = new byte[length];
-                Array.Copy(bytes, startIndex, copy, 0, length);
-                Buffer.Add(copy);
+                if (bytes.Length == length && startIndex == 0)
+                    Buffer.Add(bytes);
+                else
+                {
+                    var copy = new byte[length];
+                    Array.Copy(bytes, startIndex, copy, 0, length);
+                    Buffer.Add(copy);
+                }
+                CurrentBufferSize += length;
+                TotalSize += length;
             }
-            CurrentBufferSize += length;
-            TotalSize += length;
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());      
+            }            
         }
 
         public byte[] ToBytes()
         {
-            //count * 4 is for the size of each byte array in buffer list
-            var bytes = new byte[TotalSize + Buffer.Count * 4];
-            int index = 0;
-            foreach (var packet in Buffer)
+            try
             {
-                var intAsBytes = BitConverter.GetBytes(packet.Length);
-                Array.Copy(intAsBytes, 0, bytes, index, 4);
-                index += 4;
-                Array.Copy(packet, 0, bytes, index, packet.Length);
-                index += packet.Length;
+                //count * 4 is for the size of each byte array in buffer list
+                var bytes = new byte[TotalSize + Buffer.Count*4];
+                int index = 0;
+                foreach (var packet in Buffer)
+                {
+                    var intAsBytes = BitConverter.GetBytes(packet.Length);
+                    Array.Copy(intAsBytes, 0, bytes, index, 4);
+                    index += 4;
+                    Array.Copy(packet, 0, bytes, index, packet.Length);
+                    index += packet.Length;
+                }
+                return bytes;
             }
-            return bytes;
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
+                return null;
+            }
         }
 
         protected void LoadFrom(byte[] bytes, int length)
         {
-            int index = 0;
-            while (index < length)
+            try
             {
-                var packetLength = BitConverter.ToInt32(bytes, index);
-                index += 4;
-                Push(bytes, index, packetLength);
-                index += packetLength;
+                int index = 0;
+                while (index < length)
+                {
+                    var packetLength = BitConverter.ToInt32(bytes, index);
+                    index += 4;
+                    Push(bytes, index, packetLength);
+                    index += packetLength;
+                }
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag,e.ToString());
             }
         }
 
@@ -111,9 +136,9 @@ namespace Sentro.Traffic
 
         public byte[] SourceIp()
         {
-            if (ipHeader == null)
-                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
-            return ipHeader?.SourceAddress.GetAddressBytes();
+            if (_ipHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out _tcpHeader, out _ipHeader);
+            return _ipHeader?.SourceAddress.GetAddressBytes();
         }
 
         public void SetSourceIp(byte[] sourceIp)
@@ -123,9 +148,9 @@ namespace Sentro.Traffic
 
         public byte[] SourcePort()
         {
-            if (tcpHeader == null)
-                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
-            return tcpHeader != null ? BitConverter.GetBytes(tcpHeader.SourcePort) : null;
+            if (_tcpHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out _tcpHeader, out _ipHeader);
+            return _tcpHeader != null ? BitConverter.GetBytes(_tcpHeader.SourcePort) : null;
         }
 
         public void SetSourcePort(byte[] sourcePort)
@@ -139,9 +164,9 @@ namespace Sentro.Traffic
 
         public byte[] DestinationIp()
         {
-            if (ipHeader == null)
-                TrafficManager.GetInstance().Parse(Buffer[0], (uint)Buffer[0].Length, out tcpHeader, out ipHeader);
-            return ipHeader?.DestinationAddress.GetAddressBytes();
+            if (_ipHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint)Buffer[0].Length, out _tcpHeader, out _ipHeader);
+            return _ipHeader?.DestinationAddress.GetAddressBytes();
         }
 
         public void SetDestinationIp(byte[] destinationIp)
@@ -151,9 +176,9 @@ namespace Sentro.Traffic
 
         public byte[] DestinationPort()
         {
-            if (tcpHeader == null)
-                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
-            return tcpHeader != null ? BitConverter.GetBytes(tcpHeader.DestinationPort) : null;
+            if (_tcpHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out _tcpHeader, out _ipHeader);
+            return _tcpHeader != null ? BitConverter.GetBytes(_tcpHeader.DestinationPort) : null;
         }
 
         public void SetDestinationPort(byte[] destinationPort)
@@ -167,9 +192,9 @@ namespace Sentro.Traffic
 
         public int Offset()
         {
-            if (tcpHeader == null || ipHeader == null)
-                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out tcpHeader, out ipHeader);
-            return HelperFunctions.Offset(tcpHeader, ipHeader);
+            if (_tcpHeader == null || _ipHeader == null)
+                TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out _tcpHeader, out _ipHeader);
+            return HelperFunctions.Offset(_tcpHeader, _ipHeader);
         }
     }
 }

@@ -22,10 +22,8 @@ namespace Sentro.Utilities
 
         public void Debug(string tag, string message)
         {
-            #if DEBUG
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
             Console.WriteLine("\n{0} Debug {1} {2}\n", time, tag, message);
-            #endif
         }
 
         public void Info(string tag, string message)

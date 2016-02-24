@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using PcapDotNet.Base;
 using Sentro.ARP;
+using Sentro.Traffic;
 using Sentro.Utilities;
 
 namespace Sentro
@@ -12,58 +13,42 @@ namespace Sentro
     */
     public class Program
     {
-        public const string Tag = "Program";     
+        public const string Tag = "Program";
+
         private static void Main(string[] args)
-        {            
+        {
             Console.Title = "Sentro";
             Console.WriteLine(Sento);
-            MainPoint:
-            try
-            {
 
-                using (new SingleGlobalInstance(1000))
+            using (new SingleGlobalInstance(1000))
+            {
+                _handler = ConsoleEventCallback; //used to detect terminiation
+                SetConsoleCtrlHandler(_handler, true); //using mutix and callbacks
+                Console.CancelKeyPress += delegate { CleanUpSentro(); };                
+
+                string readLine;
+                do
                 {
-                    _handler = ConsoleEventCallback; //used to detect terminiation
-                    SetConsoleCtrlHandler(_handler, true); //using mutix and callbacks
-                    Console.CancelKeyPress += delegate { CleanUpSentro(); };
+                    readLine = ReadLineAsync().Result;
+                    if (readLine.IsNullOrEmpty())
+                        continue;
 
-                    string readLine;
-                    do
-                    {
-                        readLine = ReadLineAsync().Result;
-                        if (readLine.IsNullOrEmpty())
-                            continue;
+                    var commands = readLine.Split(' ');
+                    switch (commands[0].ToLower())
+                    {                        
+                        case "arp":
+                            InputHandler.Arp(readLine);
+                            break;
+                        case "traffic":
+                            InputHandler.Traffic(readLine);
+                            break;
+                        case "exit":
+                            break;
+                    }
 
-                        var commands = readLine.Split(' ');
-                        switch (commands[0].ToLower())
-                        {
-                            case "status":
-                                Task.Run(() => InputHandler.Status(readLine));
-                                break;
-                            case "arp":
-                                Task.Run(() => InputHandler.Arp(readLine));
-                                break;
-                            case "tm":
-                                Task.Run(() => InputHandler.Traffic(readLine));
-                                break;
-                            case "exit":
-                                break;                           
-                            default:                                
-                                break;
-                        }
+                } while (readLine != null && !readLine.Equals("exit"));
 
-                    } while (readLine != null && !readLine.Equals("exit"));
-
-                    CleanUpSentro();
-                }
-            }
-            catch (TimeoutException singleProcessException)
-            {
-                                
-            }
-            catch (Exception e)
-            {                                
-                goto MainPoint;
+                CleanUpSentro();
             }
         }
 
@@ -91,6 +76,8 @@ namespace Sentro
                 state == ArpSpoofer.Status.Starting ||
                 state == ArpSpoofer.Status.Paused)
                 await Task.Run(()=>ArpSpoofer.GetInstance().Stop());
+
+            TrafficManager.GetInstance().Stop();
         }
 
         private static async Task<string> ReadLineAsync()

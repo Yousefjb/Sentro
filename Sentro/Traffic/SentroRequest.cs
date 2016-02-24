@@ -46,7 +46,7 @@ namespace Sentro.Traffic
 
         public string RequestUriHashed()
         {
-            var normalized = new Normalizer().Normalize(RequestUri());
+            var normalized = Normalizer.GetInstance().Normalize(RequestUri());
             return new Murmur2().Hash(Encoding.ASCII.GetBytes(normalized));
         }
 

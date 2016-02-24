@@ -459,7 +459,7 @@ namespace Sentro.ARP
 
         public void Start() => _status = Status.Starting;
 
-        public void Usage()
+        public string Usage()
         {
             var usage = @"
 arp [Your IP] spoof [Set of target ips]
@@ -471,7 +471,7 @@ arp start
 arp resume
 arp
 ";
-            Console.WriteLine(usage);
+            return usage;
         }
 
         public Status State() => _status;
