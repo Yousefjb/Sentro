@@ -19,12 +19,11 @@ namespace Sentro
         {
             Console.Title = "Sentro";
             Console.WriteLine(Sento);
-
             using (new SingleGlobalInstance(1000))
             {
                 _handler = ConsoleEventCallback; //used to detect terminiation
                 SetConsoleCtrlHandler(_handler, true); //using mutix and callbacks
-                Console.CancelKeyPress += delegate { CleanUpSentro(); };                
+                Console.CancelKeyPress += delegate { CleanUpSentro(); };
 
                 string readLine;
                 do
@@ -35,7 +34,7 @@ namespace Sentro
 
                     var commands = readLine.Split(' ');
                     switch (commands[0].ToLower())
-                    {                        
+                    {
                         case "arp":
                             InputHandler.Arp(readLine);
                             break;
@@ -50,6 +49,7 @@ namespace Sentro
 
                 CleanUpSentro();
             }
+
         }
 
         #region Clean up before Sentro termination

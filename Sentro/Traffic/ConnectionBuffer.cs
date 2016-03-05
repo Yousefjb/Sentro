@@ -1,24 +1,21 @@
 ﻿using System;
-using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
     class ConnectionBuffer
     {
-        public const string Tag = "ConnectionBuffer";
-        private FileHierarchy _fileHierarchy;
+        public const string Tag = "ConnectionBuffer";        
         private SentroRequest _request;
         private SentroResponse _response;
         private bool _tempCreated;
 
         public ConnectionBuffer(SentroRequest request)
-        {
-            _fileHierarchy = FileHierarchy.GetInstance();
+        {            
             _request = request;
             _response = new SentroResponse();
         }
 
-        public void Buffer(ref byte[] bytes, int length)
+        public void Buffer(byte[] bytes, int length)
         {
             if (!_response.CanHoldMore(length))
             {

@@ -24,11 +24,12 @@ namespace Sentro.Cache
         }
 
         public void Cache(SentroRequest request, SentroResponse response)
-        {
+        {            
             try
             {
-                var hash = request.RequestUriHashed();
-                _fileHierarchy.WriteToTemp(hash, response.ToBytes());
+                _fileLogger.Debug(Tag,"caching this url " + request.RequestUri());
+                var hash = request.RequestUriHashed();                
+                Writer.WriteAsync(response.ToBytes(),_fileHierarchy.MapToTempPath(hash));              
             }
             catch (Exception e)
             {
@@ -38,13 +39,14 @@ namespace Sentro.Cache
 
         public SentroResponse Get(SentroRequest request)
         {
+            return null;
             try
             {
                 var hash = request.RequestUriHashed();
                 SentroResponse response = null;
                 if (_fileHierarchy.ExistInTemp(hash))
-                {
-                    var bytes = _fileHierarchy.ReadFromTemp(hash);
+                {                    
+                    var bytes = Reader.ReadBytes(_fileHierarchy.MapToTempPath(hash));
                     response =  SentroResponse.CreateFromBytes(bytes, bytes.Length);
                 }
                 return response;

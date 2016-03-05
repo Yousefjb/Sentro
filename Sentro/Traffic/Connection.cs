@@ -39,7 +39,12 @@
         {
             return ((SourceIp.GetHashCode() ^ SourcePort.GetHashCode()) as object).GetHashCode() ^
                 ((DestinationIp.GetHashCode() ^ DestinationPort.GetHashCode()) as object).GetHashCode();
-        }       
+        }
+
+        public override string ToString()
+        {
+            return $"{SourceIp}:{SourcePort} -> {DestinationIp}:{DestinationPort}";
+        }
     }
 
 }

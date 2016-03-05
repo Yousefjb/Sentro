@@ -118,7 +118,9 @@
     <Compile Include="Utilities\NetworkUtilites.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities\Reader.cs" />
     <Compile Include="Utilities\Settings.cs" />
+    <Compile Include="Utilities\Writer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -140,8 +142,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy /Y "$(ProjectDir)..\Divert.Net\Divert.Net\build\$(ConfigurationName) $(PlatformTarget)\*.dll" "$(TargetDir)"
-xcopy /Y "$(ProjectDir)..\Divert.Net\Divert.Net\build\$(ConfigurationName) $(PlatformTarget)\*.sys" "$(TargetDir)"</PostBuildEvent>
+    <PostBuildEvent>xcopy /Y /C "$(ProjectDir)..\Divert.Net\Divert.Net\build\$(ConfigurationName) $(PlatformTarget)\*.dll" "$(TargetDir)"
+xcopy /Y /C "$(ProjectDir)..\Divert.Net\Divert.Net\build\$(ConfigurationName) $(PlatformTarget)\*.sys" "$(TargetDir)"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

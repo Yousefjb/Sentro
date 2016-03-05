@@ -7,6 +7,10 @@ using Newtonsoft.Json.Linq;
 
 namespace Sentro.Utilities
 {
+    /*
+        Responsibility : Hold all settings for the system
+        TODO: replace with a hardcoded version insted of dynamic
+    */
     class Settings
     {
         public const string Tag = "Settings";
@@ -21,7 +25,7 @@ namespace Sentro.Utilities
 
         private Settings()
         {
-            _fileLogger = FileLogger.GetInstance();
+            
             Reload();
             Task.Run(() =>
             {
@@ -43,7 +47,9 @@ namespace Sentro.Utilities
             }
             catch (Exception e)
             {
-                 _fileLogger.Error(Tag,e.ToString());
+                if(_fileLogger == null)
+                    _fileLogger = FileLogger.GetInstance();
+                _fileLogger.Error(Tag, e.ToString());
             }
         }
     }    

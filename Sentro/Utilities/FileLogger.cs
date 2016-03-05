@@ -1,8 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Sentro.Utilities
 {
+    /*
+        Responsibility : Log info to a file in the logging folder
+    */
     internal class FileLogger : ILogger, IDisposable
     {
         public const string Tag = "FileLogger";
@@ -11,36 +15,38 @@ namespace Sentro.Utilities
 
         public static FileLogger GetInstance()
         {
-            return _fileLogger ?? (_fileLogger = new FileLogger());
+            return _fileLogger ?? (_fileLogger = new FileLogger());            
         }
 
         private FileLogger()
         {
             var fileHierarchy = FileHierarchy.GetInstance();
-            _file = new StreamWriter(fileHierarchy.LogsDirectory + "/" + DateTime.UtcNow, true);
+            string path = fileHierarchy.LogsDirectory + "\\" + DateTime.Today.Ticks;
+            var directoryInfo = new FileInfo(path).Directory;
+            directoryInfo?.Create();
+            if (directoryInfo != null) directoryInfo.Attributes &= ~FileAttributes.ReadOnly;
+            _file = new StreamWriter(path, true) {AutoFlush = true};
         }
 
         public void Debug(string tag, string message)
         {
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            _file.WriteLine($"{time} Debug {tag} {message}");
+            Writer.Write($"{time} Debug {tag} {message}", _file);
+            _file.Flush();
         }
 
         public void Info(string tag, string message)
         {
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            _file.WriteLine($"{time} Info {tag} {message}");
+            Writer.Write($"{time} Info {tag} {message}",_file);
+            _file.Flush();
         }
 
         public void Error(string tag, string message)
         {
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            _file.WriteLine($"{time} Error {tag} {message}");
-        }
-
-        ~FileLogger()
-        {
-            _file.Close();
+            Writer.Write($"{time} Error {tag} {message}",_file);
+            _file.Flush();
         }
 
         public void Dispose()

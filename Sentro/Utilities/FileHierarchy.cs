@@ -1,25 +1,24 @@
 ﻿using System;
 using System.IO;
 
-
 namespace Sentro.Utilities
 {
+    /*
+        Responsibility : Represent the File Hirarchy of the system and paths to files and folders
+    */
     class FileHierarchy
     {
         public const string Tag = "FileHierarchy";
         private readonly string _mainDirectory;
         private readonly string _tempDirectory;
         private readonly string _logsDirectory;
-        private static FileHierarchy _fileHierarchy;
-        private static FileLogger _fileLogger;
+        private static FileHierarchy _fileHierarchy;             
 
         private FileHierarchy()
-        {
-            _fileLogger =FileLogger.GetInstance(); 
+        {            
             _mainDirectory = Settings.GetInstance().Setting.Cache.Path;
-            _tempDirectory = _mainDirectory + "/temp";
-            _logsDirectory = _mainDirectory + "/logs";
-            Init();
+            _tempDirectory = _mainDirectory + "\\temp";
+            _logsDirectory = _mainDirectory + "\\logs";                     
         }
         public static FileHierarchy GetInstance()
         {
@@ -34,7 +33,7 @@ namespace Sentro.Utilities
                 {
                     for (int k = 0; k < 256; k++)
                     {
-                        var folder = $"{_mainDirectory}/{i.ToString("X")}/{k.ToString("X2")}";
+                        var folder = $"{_mainDirectory}\\{i.ToString("X")}\\{k.ToString("X2")}";
                         Directory.CreateDirectory(folder);
                     }
                 }
@@ -44,7 +43,8 @@ namespace Sentro.Utilities
             }
             catch (Exception e)
             {
-                _fileLogger.Error(Tag,e.ToString());
+
+                
             }
         }
 
@@ -88,14 +88,18 @@ namespace Sentro.Utilities
             File.Move(MapToTempPath(hash), MapToFilePath(hash));
         }
 
-        private string MapToTempPath(string hash)
+        public string MapToTempPath(string hash)
         {
-            return $"{_tempDirectory}/{hash}";
+            string path = $"{_tempDirectory}";            
+            Directory.CreateDirectory(path);
+            return path + $"\\{hash}";
         }
 
-        private string MapToFilePath(string hash)
+        public string MapToFilePath(string hash)
         {
-            return $"{_mainDirectory}/{hash[0]}/{hash.Substring(1, 2)}/{hash.Substring(3)}/{hash}";
+            string path = $"{_mainDirectory}\\{hash[0]}\\{hash.Substring(1, 2)}\\{hash.Substring(3)}";
+            Directory.CreateDirectory(path);
+            return path + $"\\{ hash}";
         }
     }
 }

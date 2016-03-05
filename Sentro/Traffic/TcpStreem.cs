@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using Divert.Net;
 using Sentro.Utilities;
 
@@ -70,17 +71,19 @@ namespace Sentro.Traffic
         public byte[] ToBytes()
         {
             try
-            {
-                //count * 4 is for the size of each byte array in buffer list
+            {                              
+                _fileLogger.Debug(Tag,$"converting response {Buffer.Count} packet's to bytes");
+                //count * 4 is for the size of each byte array in buffer list                
                 var bytes = new byte[TotalSize + Buffer.Count*4];
                 int index = 0;
                 foreach (var packet in Buffer)
                 {
                     var intAsBytes = BitConverter.GetBytes(packet.Length);
-                    Array.Copy(intAsBytes, 0, bytes, index, 4);
+                    Array.Copy(intAsBytes, 0, bytes, index, 4);                    
                     index += 4;
-                    Array.Copy(packet, 0, bytes, index, packet.Length);
+                    Array.Copy(packet, 0, bytes, index, packet.Length);                    
                     index += packet.Length;
+                    _fileLogger.Debug(Tag,Encoding.UTF8.GetString(packet));
                 }
                 return bytes;
             }

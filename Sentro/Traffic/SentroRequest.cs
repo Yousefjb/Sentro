@@ -37,10 +37,10 @@ namespace Sentro.Traffic
 
             int offset = Offset();
             var ascii = Encoding.ASCII.GetString(Buffer[0],offset,Buffer[0].Length - offset);
-            var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch);
-            string path = result.Value;
-            string host = result.NextMatch().Value;
-            _requestUri = host + path;            
+            var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch,RegexOptions.Multiline);                        
+            string path = result.Groups[1].Value;
+            string host = result.Groups[2].Value.Replace("\r","");
+            _requestUri = host + path;
             return _requestUri;
         }
 
