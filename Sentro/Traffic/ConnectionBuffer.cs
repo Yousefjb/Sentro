@@ -2,6 +2,9 @@
 
 namespace Sentro.Traffic
 {
+    /*
+        Responsibility : Hold request and response buffers for a connection
+     */
     class ConnectionBuffer
     {
         public const string Tag = "ConnectionBuffer";        
@@ -14,7 +17,7 @@ namespace Sentro.Traffic
             _request = request;
             _response = new SentroResponse();
         }
-
+       
         public void Buffer(byte[] bytes, int length)
         {
             if (!_response.CanHoldMore(length))
@@ -29,15 +32,9 @@ namespace Sentro.Traffic
             _response.Push(bytes,length);
         }
 
-        public SentroRequest Request()
-        {
-            return _request;
-        }
+        public SentroRequest Request => _request;
 
-        public SentroResponse Response()
-        {
-            return _response;
-        }
+        public SentroResponse Response => _response; 
 
         public void Reset()
         {

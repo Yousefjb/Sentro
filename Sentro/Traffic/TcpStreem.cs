@@ -193,10 +193,17 @@ namespace Sentro.Traffic
             }
         }
 
-        public int Offset()
+        protected int Offset()
         {
             if (_tcpHeader == null || _ipHeader == null)
                 TrafficManager.GetInstance().Parse(Buffer[0], (uint) Buffer[0].Length, out _tcpHeader, out _ipHeader);
+            return HelperFunctions.Offset(_tcpHeader, _ipHeader);
+        }
+
+        protected int Offset(byte[] bytes,uint length)
+        {
+            if (_tcpHeader == null || _ipHeader == null)
+                TrafficManager.GetInstance().Parse(bytes,length, out _tcpHeader, out _ipHeader);
             return HelperFunctions.Offset(_tcpHeader, _ipHeader);
         }
     }

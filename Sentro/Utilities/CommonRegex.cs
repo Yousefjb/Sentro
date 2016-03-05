@@ -14,5 +14,6 @@ namespace Sentro.Utilities
         public const string HttpGet = @"^GET .+ HTTP\/1.[0-1]";
         public const string HttpResonse = @"^HTTP\/1.[0-1] \d{3}";
         public const string HttpGetUriMatch = @"^GET (.+) HTTP\/1.[0-1](?:.+\n)+Host: (.+)";
+        public const string HttpContentLengthMatch = @"^content-length: (\d+)";
     }
 }

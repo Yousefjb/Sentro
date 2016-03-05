@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Divert.Net;
 using Sentro.ARP;
@@ -114,17 +115,14 @@ namespace Sentro.Traffic
                                 connectionBuffer.Buffer(buffer, (int) receiveLength);
                                 _fileLogger.Debug(Tag,"buffered " + receiveLength);                                
                                 /*resposne not complete yet*/
-                                if (tcpHeader.Psh == 1)
+                                if (connectionBuffer.Response.Complete)
                                 {
-                                    _fileLogger.Debug(Tag,"end of response");
-                                    if (HelperFunctions.IsHttpResponse(buffer, offset, receiveLength))
-                                    {
-                                        var request = connectionBuffer.Request();
-                                        var response = connectionBuffer.Response();
-                                        _cacheManager.Cache(request, response);                                        
-                                        connectionBuffer.Reset();
-                                        divertDict.Remove(connection);
-                                    }
+                                    _fileLogger.Debug(Tag, "end of response");                                    
+                                    var request = connectionBuffer.Request;
+                                    var response = connectionBuffer.Response;
+                                    _cacheManager.Cache(request, response);
+                                    connectionBuffer.Reset();
+                                    divertDict.Remove(connection);
                                 }
                             }
                             else 
