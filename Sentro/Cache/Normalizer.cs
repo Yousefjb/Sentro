@@ -4,6 +4,9 @@ using Sentro.Utilities;
 
 namespace Sentro.Cache
 {
+    /*
+        Responsibility : Normalising and custom hashing
+    */
     class Normalizer
     {
         public static string Tag = "Normalizer";

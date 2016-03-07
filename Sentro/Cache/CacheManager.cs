@@ -4,6 +4,9 @@ using Sentro.Traffic;
 
 namespace Sentro.Cache
 {
+    /*
+        Responsibility : hold the logic of caching process
+    */
     internal class CacheManager
     {
         public const string Tag = "CacheManager";
@@ -29,12 +32,17 @@ namespace Sentro.Cache
             {
                 _fileLogger.Debug(Tag,"caching this url " + request.RequestUri());
                 var hash = request.RequestUriHashed();                
-                Writer.WriteAsync(response.ToBytes(),_fileHierarchy.MapToTempPath(hash));              
+                Writer.WriteAsync(response.ToBytes(),_fileHierarchy.MapToFilePath(hash));              
             }
             catch (Exception e)
             {
                 _fileLogger.Error(Tag,e.ToString());
             }
+        }
+
+        public static bool IsCacheable(SentroResponse response)
+        {
+            return true;
         }
 
         public SentroResponse Get(SentroRequest request)

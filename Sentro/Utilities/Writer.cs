@@ -3,6 +3,10 @@ using System.Threading.Tasks;
 
 namespace Sentro.Utilities
 {
+    /*
+        Responsibility : group all Hard drive writing opreations together
+        TODO : remove this class with refactoring
+    */
     static class Writer
     {
         public static void Write(string text, StreamWriter file)
@@ -38,6 +42,6 @@ namespace Sentro.Utilities
         {
             await Task.Run(() =>
                 File.WriteAllBytes(path, bytes));
-        }
+        }        
     }
 }

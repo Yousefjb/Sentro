@@ -1,5 +1,8 @@
 ﻿namespace Sentro.Traffic
 {
+    /*
+        Responsibility : Hold addresses for a connection
+    */
     class Connection
     {
         public const string Tag = "Connection";
@@ -17,12 +20,6 @@
         }
 
 
-        /// <summary>
-        /// Overrided in order to catch both sides of the connection 
-        /// with the same connection object
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
         public override bool Equals(object obj)
         {
             if (!(obj is Connection))

@@ -1,6 +1,4 @@
-﻿using PcapDotNet.Core;
-
-namespace Sentro.Utilities
+﻿namespace Sentro.Utilities
 {
     /*
         Responsipility : define named methods for logging information

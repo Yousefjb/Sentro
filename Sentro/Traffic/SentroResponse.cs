@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Text.RegularExpressions;
 using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
-    internal class SentroResponse  : TcpStreem
+    /*
+        Responsibility : TcpStream that hold response bytes with http response specific functions
+    */
+    internal class SentroResponse  : TcpStream
     {
         public new const string Tag = "SentroResponse";
-        public bool Complete { get; private set; }
+        
         private int _contentLength;
         private int _capturedLength;
         private FileLogger _fileLogger;    
@@ -35,10 +36,7 @@ namespace Sentro.Traffic
             base.Push(bytes,length);
             if (Buffer.Count == 1)
             {
-                var ascii = Encoding.ASCII.GetString(bytes);
-                var result = Regex.Match(ascii, CommonRegex.HttpContentLengthMatch,
-                    RegexOptions.IgnoreCase | RegexOptions.Multiline);
-                _contentLength = Convert.ToInt32(result.Groups[1].Value); 
+                _contentLength = HttpParser.ContentLength(bytes, length);
                 _fileLogger.Debug(Tag,"content legnth : " + _contentLength);               
             }
             else
@@ -51,10 +49,9 @@ namespace Sentro.Traffic
         }
 
 
-        public List<byte[]> Packets()
-        {
-            return Buffer;
-        }
+        public List<byte[]> Packets() => Buffer;
+
+        public bool Complete { get; private set; }
 
         public static SentroResponse CreateFromBytes(byte[] bytes, int length)
         {

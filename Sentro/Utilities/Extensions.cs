@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.ObjectModel;
-using System.Text;
 using PcapDotNet.Base;
 using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.IpV4;
 
 namespace Sentro.Utilities
 {
+    /*
+        Responsibility : extra functions to improve writablity
+    */
     static class Extensions
     {
         public const string Tag = "Extensions";
@@ -34,11 +36,6 @@ namespace Sentro.Utilities
             for (int i = 0; i < hexValues.Length; i++)
                 ipBytes[i] = Convert.ToByte(hexValues[i]);
             return ipBytes.AsReadOnly();
-        }
-
-        public static byte[] ToBytes(this string url)
-        {
-            return Encoding.ASCII.GetBytes(url);
         }
 
     }

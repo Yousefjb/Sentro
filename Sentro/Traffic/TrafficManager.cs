@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Divert.Net;
-using Sentro.ARP;
 using Sentro.Cache;
 using Sentro.Utilities;
 
@@ -21,18 +20,18 @@ namespace Sentro.Traffic
         public const string Tag = "TrafficManager";
         private static TrafficManager _trafficManager;              
         private static FileLogger _fileLogger;
-        private static CacheManager _cacheManager;
-        private static ArpSpoofer _arpSpoofer;
+        private static CacheManager _cacheManager;        
         private Diversion _diversionNormal, _diversionForward;
         private bool _running;
+        private KvStore _kvStore;
 
         private const string Filter = "tcp.DstPort == 80 or tcp.SrcPort == 80";
 
         private TrafficManager()
         {
-            _cacheManager = CacheManager.GetInstance();
-            _arpSpoofer = ArpSpoofer.GetInstance();
+            _cacheManager = CacheManager.GetInstance();            
             _fileLogger = FileLogger.GetInstance();
+            _kvStore = KvStore.GetInstance();
         }
 
         public static TrafficManager GetInstance()
@@ -98,14 +97,14 @@ namespace Sentro.Traffic
                     var connection = new Connection(ipHeader.SourceAddress.ToString(), tcpHeader.SourcePort,
                         ipHeader.DestinationAddress.ToString(), tcpHeader.DestinationPort);
 
-                    _fileLogger.Debug(Tag,connection.ToString());//<--------------------
+                    _fileLogger.Debug(Tag,connection.ToString());
                     /*if already started caching*/
                     if (divertDict.ContainsKey(connection))
                     {
                         /*pass - no need to calcualte checksum*/                        
                         diversion.SendAsync(buffer, receiveLength, address, ref sendLength);                                               
                         if (address.Direction == DivertDirection.Inbound ||
-                            (forwardMode && IsArpTarget(ipHeader.DestinationAddress.ToString())))
+                            (forwardMode && IsTarget(ipHeader.DestinationAddress)))
                         {
                             var offset = HelperFunctions.Offset(tcpHeader, ipHeader);
                             if (receiveLength - offset > 0)
@@ -115,13 +114,9 @@ namespace Sentro.Traffic
                                 connectionBuffer.Buffer(buffer, (int) receiveLength);
                                 _fileLogger.Debug(Tag,"buffered " + receiveLength);                                
                                 /*resposne not complete yet*/
-                                if (connectionBuffer.Response.Complete)
+                                if (connectionBuffer.ResponseCompleted)
                                 {
-                                    _fileLogger.Debug(Tag, "end of response");                                    
-                                    var request = connectionBuffer.Request;
-                                    var response = connectionBuffer.Response;
-                                    _cacheManager.Cache(request, response);
-                                    connectionBuffer.Reset();
+                                    _fileLogger.Debug(Tag, "end of response");                                                                      
                                     divertDict.Remove(connection);
                                 }
                             }
@@ -134,7 +129,7 @@ namespace Sentro.Traffic
                     else // new connection need to moniture
                     {
                         if (address.Direction == DivertDirection.Inbound ||
-                            (forwardMode && IsArpTarget(ipHeader.DestinationAddress.ToString())))
+                            (forwardMode && IsTarget(ipHeader.DestinationAddress)))
                         {
                             /*
                           new connection started as inbound is either 
@@ -213,8 +208,6 @@ namespace Sentro.Traffic
                 return;
 
             _running = true;
-            //Task.Run(() => Divert(true));
-            //Task.Run(() => Divert(false)); 
             //new Thread(DivertForwardMode).Start();
             new Thread(DivertNormalMode).Start();
         }
@@ -229,9 +222,9 @@ namespace Sentro.Traffic
             Divert(false);
         }
 
-        private bool IsArpTarget(string ip)
+        private bool IsTarget(IPAddress ip)
         {
-            return _arpSpoofer.State() != ArpSpoofer.Status.Stopped && _arpSpoofer.IsTargeted(ip);
+            return _kvStore.TargetIps.Contains(ip.ToString());           
         }
 
     }

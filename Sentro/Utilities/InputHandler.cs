@@ -10,7 +10,6 @@ namespace Sentro.Utilities
     /*    
         Responsibility : Take input from user and convert it to command        
     */
-
     internal class InputHandler
     {
         public const string Tag = "InputHandler";

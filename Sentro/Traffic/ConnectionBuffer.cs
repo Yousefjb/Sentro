@@ -1,4 +1,5 @@
-﻿using System;
+﻿using System.IO;
+using Sentro.Cache;
 
 namespace Sentro.Traffic
 {
@@ -9,42 +10,40 @@ namespace Sentro.Traffic
     {
         public const string Tag = "ConnectionBuffer";        
         private SentroRequest _request;
-        private SentroResponse _response;
-        private bool _tempCreated;
+        private SentroResponse _response;        
+        private bool _isCacheable;
+        private StreamWriter _streamWriter;
 
         public ConnectionBuffer(SentroRequest request)
         {            
-            _request = request;
-            _response = new SentroResponse();
+            _request = request;          
         }
        
         public void Buffer(byte[] bytes, int length)
         {
-            if (!_response.CanHoldMore(length))
+            if (_response == null)
             {
-                if (!_tempCreated)
-                    Flush(_request);
-
-                Flush(_response);
-                _tempCreated = true;
+                _response = new SentroResponse(bytes, length);
+                _isCacheable = CacheManager.IsCacheable(_response);            
             }
-
-            _response.Push(bytes,length);
+            else if (_isCacheable)
+                _response.Push(bytes, length);
         }
 
-        public SentroRequest Request => _request;
+        public bool ResponseCompleted
+        {
+            get
+            {
+                if(_response.Complete)
+                    Reset();
+                return _response.Complete;
+            }
+        }
 
-        public SentroResponse Response => _response; 
-
-        public void Reset()
+        private void Reset()
         {
             _request.Dispose();
             _response.Dispose();            
-        }
-
-        private void Flush(TcpStreem streem)
-        {
-            throw new NotImplementedException();
-        }
+        }       
     }
 }

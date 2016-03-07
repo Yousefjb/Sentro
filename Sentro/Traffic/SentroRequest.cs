@@ -6,7 +6,10 @@ using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
-    internal class SentroRequest : TcpStreem
+    /*
+        Responsibility : TcpStream that hold request bytes with http request specific functions
+    */
+    internal class SentroRequest : TcpStream
     {
         public new const string Tag = "SentroRequest";   
         private string _requestUri = "";        
@@ -45,9 +48,9 @@ namespace Sentro.Traffic
         }
 
         public string RequestUriHashed()
-        {
+        {                        
             var normalized = Normalizer.GetInstance().Normalize(RequestUri());
-            return new Murmur2().Hash(Encoding.ASCII.GetBytes(normalized));
+            return Murmur2.HashX8(normalized,Encoding.ASCII);
         }
 
     }

@@ -66,8 +66,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="ArpSpooferTest.cs" />
-    <Compile Include="NetworkDiscoveryTest.cs" />
+    <Compile Include="Murmur2Tests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

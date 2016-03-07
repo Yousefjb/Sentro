@@ -102,7 +102,7 @@
     <Compile Include="Traffic\HelperFunctions.cs" />
     <Compile Include="Traffic\SentroRequest.cs" />
     <Compile Include="Traffic\SentroResponse.cs" />
-    <Compile Include="Traffic\TcpStreem.cs" />
+    <Compile Include="Traffic\TcpStream.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />
     <Compile Include="Traffic\Connection.cs" />
     <Compile Include="Traffic\ConnectionBuffer.cs" />
@@ -110,10 +110,12 @@
     <Compile Include="Utilities\CommonRegex.cs" />
     <Compile Include="Utilities\Extensions.cs" />
     <Compile Include="Utilities\FileLogger.cs" />
+    <Compile Include="Utilities\HttpParser.cs" />
     <Compile Include="Utilities\ILogger.cs" />
     <Compile Include="Utilities\ConsoleLogger.cs" />
     <Compile Include="SingleGlobalInstance.cs" />
     <Compile Include="Utilities\InputHandler.cs" />
+    <Compile Include="Utilities\KvStore.cs" />
     <Compile Include="Utilities\Murmur2.cs" />
     <Compile Include="Utilities\NetworkUtilites.cs" />
     <Compile Include="Program.cs" />

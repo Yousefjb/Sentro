@@ -1,11 +1,8 @@
-﻿
-namespace Sentro.Utilities
+﻿namespace Sentro.Utilities
 {
-
     /*
         Responsipility : Group up all common regex used by sentro
     */
-
     public sealed class CommonRegex
     {
         public const string Tag = "CommonRegex";

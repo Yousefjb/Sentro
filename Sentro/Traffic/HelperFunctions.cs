@@ -4,9 +4,11 @@ using Divert.Net;
 using Sentro.Utilities;
 
 namespace Sentro.Traffic
-{
-    //TODO : why ip header should be multiplied by 4 ?
-    // Tcp is multiplied due to it being in words but why ip header ?
+{    
+    /*
+        Responsibility : a group of functions for all other classes
+        TODO: remove this class
+    */
     static class HelperFunctions
     {
         public static int Offset(TCPHeader tcpHeader, IPHeader ipHeader)

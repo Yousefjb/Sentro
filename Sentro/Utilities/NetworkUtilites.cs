@@ -10,6 +10,7 @@ namespace Sentro.Utilities
 {
     /*
         Responsipility : Provide general network functions
+        TODO : remove this class with refactoring
     */
     public class NetworkUtilites
     {

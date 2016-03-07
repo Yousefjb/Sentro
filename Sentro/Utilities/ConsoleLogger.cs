@@ -5,6 +5,7 @@ namespace Sentro.Utilities
 {
     /*
         Responsipility : Log information on console screen
+        TODO : remove this class
     */
     class ConsoleLogger : ILogger
     {

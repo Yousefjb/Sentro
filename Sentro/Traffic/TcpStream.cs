@@ -6,48 +6,44 @@ using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
-    //TODO : Use direct access to TcpHeader and IpHeader to modify source and dest addresses
-    class TcpStreem
+    /*
+        Responsibility : hold data for http stream
+        TODO : Use direct access to TcpHeader and IpHeader to modify source and dest addresses
+        TODO : remove this class since request doesn't need a stream ( single packet )
+    */
+    class TcpStream
     {
         public const string Tag = "TcpStreem";
         protected List<byte[]> Buffer;
-        protected int MaxBufferSize;
-        protected int CurrentBufferSize;
-        protected int TotalSize;
+        private int _totalSize;
         private TCPHeader _tcpHeader;
         private IPHeader _ipHeader;
         private static FileLogger _fileLogger;           
 
-        protected TcpStreem(byte[] bytes, int length,int maxBufferSize)
+        protected TcpStream(byte[] bytes, int length,int maxBufferSize)
         {
             Init(maxBufferSize);
             Push(bytes,length);
         }
 
-        protected TcpStreem(int maxBufferSize)
+        protected TcpStream(int maxBufferSize)
         {
             Init(maxBufferSize);
         }
 
-        protected void Init(int maxBufferSize)
+        private void Init(int maxBufferSize)
         {
             Buffer = new List<byte[]>();
-            MaxBufferSize = maxBufferSize;
-            CurrentBufferSize = 0;
-            TotalSize = 0;
+            _totalSize = 0;
             _fileLogger = FileLogger.GetInstance();
         }
-        public bool CanHoldMore(int bytesCount)
-        {
-            return CurrentBufferSize + bytesCount <= MaxBufferSize;
-        }
 
-        public void Push(byte[] bytes, int length)
+        protected void Push(byte[] bytes, int length)
         {
             Push(bytes, 0, length);
         }
 
-        public void Push(byte[] bytes, int startIndex, int length)
+        private void Push(byte[] bytes, int startIndex, int length)
         {
             try
             {
@@ -58,9 +54,8 @@ namespace Sentro.Traffic
                     var copy = new byte[length];
                     Array.Copy(bytes, startIndex, copy, 0, length);
                     Buffer.Add(copy);
-                }
-                CurrentBufferSize += length;
-                TotalSize += length;
+                }                
+                _totalSize += length;
             }
             catch (Exception e)
             {
@@ -74,7 +69,7 @@ namespace Sentro.Traffic
             {                              
                 _fileLogger.Debug(Tag,$"converting response {Buffer.Count} packet's to bytes");
                 //count * 4 is for the size of each byte array in buffer list                
-                var bytes = new byte[TotalSize + Buffer.Count*4];
+                var bytes = new byte[_totalSize + Buffer.Count*4];
                 int index = 0;
                 foreach (var packet in Buffer)
                 {
@@ -144,7 +139,7 @@ namespace Sentro.Traffic
             return _ipHeader?.SourceAddress.GetAddressBytes();
         }
 
-        public void SetSourceIp(byte[] sourceIp)
+        protected void SetSourceIp(byte[] sourceIp)
         {
             ReplaceInAll(sourceIp,12);
         }
@@ -156,7 +151,7 @@ namespace Sentro.Traffic
             return _tcpHeader != null ? BitConverter.GetBytes(_tcpHeader.SourcePort) : null;
         }
 
-        public void SetSourcePort(byte[] sourcePort)
+        protected void SetSourcePort(byte[] sourcePort)
         {
             foreach (byte[] packet in Buffer)
             {
@@ -172,7 +167,7 @@ namespace Sentro.Traffic
             return _ipHeader?.DestinationAddress.GetAddressBytes();
         }
 
-        public void SetDestinationIp(byte[] destinationIp)
+        protected void SetDestinationIp(byte[] destinationIp)
         {
             ReplaceInAll(destinationIp, 16);
         }
@@ -184,7 +179,7 @@ namespace Sentro.Traffic
             return _tcpHeader != null ? BitConverter.GetBytes(_tcpHeader.DestinationPort) : null;
         }
 
-        public void SetDestinationPort(byte[] destinationPort)
+        protected void SetDestinationPort(byte[] destinationPort)
         {
             foreach (byte[] packet in Buffer)
             {
