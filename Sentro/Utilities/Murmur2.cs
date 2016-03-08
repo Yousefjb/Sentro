@@ -69,9 +69,7 @@ namespace Sentro.Utilities
                     case 1:
                         h ^= *((Byte*) realData);
                         h *= m;
-                        break;
-                    default:
-                        break;
+                        break;                        
                 }
             }
 

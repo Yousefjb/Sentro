@@ -102,7 +102,6 @@
     <Compile Include="Traffic\HelperFunctions.cs" />
     <Compile Include="Traffic\SentroRequest.cs" />
     <Compile Include="Traffic\SentroResponse.cs" />
-    <Compile Include="Traffic\TcpStream.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />
     <Compile Include="Traffic\Connection.cs" />
     <Compile Include="Traffic\ConnectionBuffer.cs" />

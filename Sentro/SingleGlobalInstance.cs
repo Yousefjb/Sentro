@@ -18,7 +18,7 @@ namespace Sentro
 
         private void InitMutex()
         {
-            string appGuid = ((GuidAttribute)Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(GuidAttribute), false).GetValue(0)).Value.ToString();
+            string appGuid = ((GuidAttribute)Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(GuidAttribute), false).GetValue(0)).Value;
             string mutexId = $"Global\\{{{appGuid}}}";
             _mutex = new Mutex(false, mutexId);
 

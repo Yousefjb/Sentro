@@ -208,7 +208,7 @@ namespace Sentro.Traffic
                 return;
 
             _running = true;
-            //new Thread(DivertForwardMode).Start();
+            new Thread(DivertForwardMode).Start();
             new Thread(DivertNormalMode).Start();
         }
 
