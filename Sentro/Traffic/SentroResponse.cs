@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Divert.Net;
+using PcapDotNet.Base;
 using Sentro.Utilities;
 
 namespace Sentro.Traffic
@@ -23,15 +24,20 @@ namespace Sentro.Traffic
 
         public SentroResponse(byte[] bytes, int length)            
         {                     
-            _contentLength = HttpParser.ContentLength(bytes, length);
-            _fileLogger = FileLogger.GetInstance();            
+            Init();                   
+            _contentLength = HttpParser.ContentLength(bytes, length);            
         }
 
-        public SentroResponse()
+        private SentroResponse()
+        {
+           Init();
+        }
+
+        private void Init()
         {
             Buffer = new List<byte[]>();
             _fileLogger = FileLogger.GetInstance();
-        }      
+        }
 
         public List<byte[]> Packets() => Buffer;
 
@@ -44,8 +50,24 @@ namespace Sentro.Traffic
             return response;
         }
 
+
         public void SetAddressesFrom(SentroRequest request)
-        {                      
+        {
+            byte[] headersToReplace = new byte[54];
+            for (int i = 0; i < Buffer.Count -1; i++)
+            {
+                //ETHERNET
+                Array.Copy(request._packetBytes,0,Buffer[i],6,6);//dest mac
+                Array.Copy(request._packetBytes, 6, Buffer[i], 0, 6);//src mac
+                Array.Copy(request._packetBytes, 12, Buffer[i], 12, 2);//type
+                //IP
+                Buffer[i][14] = 0x45; // version and length = 20
+                Buffer[i][15] = 0x30; // Service feilds                
+                var length = ((ushort)Buffer[i].Length).ReverseEndianity();
+
+            }
+            Buffer[Buffer.Count-1][14] = 0x16;//ACK RST PSH
+
             SetDestinationIp(request.DestinationIp());
             SetDestinationPort(request.DestinationPort());
             SetSourceIp(request.SourceIp());
@@ -54,14 +76,15 @@ namespace Sentro.Traffic
 
         private void Push(byte[] bytes, int startIndex, int length)
         {
+            const int packetHeaders = 54;
             try
             {
                 if (bytes.Length == length && startIndex == 0)
                     Buffer.Add(bytes);
                 else
                 {
-                    var copy = new byte[length];
-                    Array.Copy(bytes, startIndex, copy, 0, length);
+                    var copy = new byte[length + packetHeaders];
+                    Array.Copy(bytes, startIndex, copy, packetHeaders, length);
                     Buffer.Add(copy);
                 }
                 _totalSize += length;
@@ -98,18 +121,19 @@ namespace Sentro.Traffic
             }
         }
 
-        public void LoadFrom(byte[] bytes, int length)
+        private void LoadFrom(byte[] bytes, int length)
         {
             try
             {
                 int index = 0;
-                while (index < length)
+                const int mtu = 1440;
+                while ((length -= mtu) >= 0)
                 {
-                    var packetLength = BitConverter.ToInt32(bytes, index);
-                    index += 4;
-                    Push(bytes, index, packetLength);
-                    index += packetLength;
+                    Push(bytes, index, mtu);
+                    index += mtu;
                 }
+                if (length < 0)
+                    Push(bytes, index, -length);
             }
             catch (Exception e)
             {
@@ -118,7 +142,7 @@ namespace Sentro.Traffic
         }
 
         private void ReplaceInAll(byte[] bytes, int startIndex)
-        {
+        {                     
             for (int i = 0; i < Buffer.Count; i++)
             {
                 for (int j = 0; j < bytes.Length; j++)

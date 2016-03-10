@@ -46,17 +46,13 @@ namespace Sentro.Cache
         }
 
         public SentroResponse Get(SentroRequest request)
-        {
-            return null;
+        {            
             try
             {
                 var hash = request.RequestUriHashed();
-                SentroResponse response = null;
-                if (_fileHierarchy.ExistInTemp(hash))
-                {                    
-                    var bytes = Reader.ReadBytes(_fileHierarchy.MapToTempPath(hash));
-                    response =  SentroResponse.CreateFromBytes(bytes, bytes.Length);
-                }
+                if (!_fileHierarchy.Exist(hash)) return null;           
+                var bytes = Reader.ReadBytes(_fileHierarchy.MapToFilePath(hash));
+                var response = SentroResponse.CreateFromBytes(bytes, bytes.Length);
                 return response;
             }
             catch (Exception e)

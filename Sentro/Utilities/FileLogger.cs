@@ -28,7 +28,7 @@ namespace Sentro.Utilities
         }
 
         public void Debug(string tag, string message)
-        {
+        {            
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
             Writer.Write($"{time} Debug {tag} {message}", _file);
             _file.Flush();

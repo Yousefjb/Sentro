@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using PcapDotNet.Base;
 using Sentro.ARP;
@@ -36,7 +37,7 @@ namespace Sentro
                     switch (commands[0].ToLower())
                     {
                         case "arp":
-                            InputHandler.Arp(readLine);
+                            new Thread(() => InputHandler.Arp(readLine)).Start();
                             break;
                         case "traffic":
                             InputHandler.Traffic(readLine);

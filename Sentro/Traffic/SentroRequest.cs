@@ -14,7 +14,7 @@ namespace Sentro.Traffic
     {
         public const string Tag = "SentroRequest";   
         private string _requestUri = "";
-        private byte[] _packetBytes;
+        public byte[] _packetBytes;
         private const int MTU = 1500;
         private FileLogger _fileLogger;
         private TCPHeader _tcpHeader;

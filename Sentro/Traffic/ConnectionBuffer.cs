@@ -1,6 +1,8 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using Divert.Net;
 using Sentro.Cache;
+using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
@@ -13,7 +15,8 @@ namespace Sentro.Traffic
         private SentroRequest _request;
         private SentroResponse _response;        
         private bool _isCacheable;        
-        private FileStream _fileStream;        
+        private FileStream _fileStream;
+        private FileLogger _fileLogger;    
 
         public ConnectionBuffer(SentroRequest request)
         {            
@@ -24,16 +27,45 @@ namespace Sentro.Traffic
         {
             if (_response == null)
             {
+                _fileLogger = FileLogger.GetInstance();
+                var path = _request.RequestUriHashed();
+                path = FileHierarchy.GetInstance().MapToFilePath(path);
                 _response = new SentroResponse(bytes, length);
-                _isCacheable = CacheManager.IsCacheable(_response);                   
-                _fileStream = new FileStream(_request.RequestUriHashed(),FileMode.Append);      
+                _isCacheable = CacheManager.IsCacheable(_response);
+                _fileStream = new FileStream(path, FileMode.Append);
+
+                var offset = Offset(bytes, length);
+                //var endOfHeaders = SearchBytes(bytes, length, new byte[] {0x0D, 0x0A, 0x0D, 0x0A});
+                //if(endOfHeaders < 0)
+                //    return;
+                //endOfHeaders += 4;
+
+                _fileStream.Write(bytes, offset, length - offset);
+                _fileStream.Seek(0, SeekOrigin.End);
             }
             else if (_isCacheable)
-            {                
-                _fileStream.Write(bytes,0,length);
+            {
+                var offset = Offset(bytes, length);
+                _fileStream.Write(bytes, offset, length - offset);
                 _fileStream.Seek(0, SeekOrigin.End);
-                _response.CapturedLength += length - Offset(bytes,length);
+                _response.CapturedLength += length - offset;
             }
+        }
+
+        static int SearchBytes(byte[] haystack,int haystackLength, byte[] needle)
+        {
+            var len = needle.Length;
+            var limit = haystackLength - len;
+            for (var i = 0; i <= limit; i++)
+            {
+                var k = 0;
+                for (; k < len; k++)
+                {
+                    if (needle[k] != haystack[i + k]) break;
+                }
+                if (k == len) return i;
+            }
+            return -1;
         }
 
         public bool ResponseCompleted
@@ -46,7 +78,7 @@ namespace Sentro.Traffic
             }
         }
 
-        protected int Offset(byte[] bytes, int length)
+        private int Offset(byte[] bytes, int length)
         {
             TCPHeader tcpHeader;
             IPHeader ipHeader;
