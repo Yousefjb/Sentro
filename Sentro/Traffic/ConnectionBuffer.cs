@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using Divert.Net;
 using Sentro.Cache;
 using Sentro.Utilities;
 
@@ -9,46 +8,59 @@ namespace Sentro.Traffic
     /*
         Responsibility : Hold request and response buffers for a connection
      */
-    class ConnectionBuffer
+    class ConnectionBuffer : IDisposable
     {
-        public const string Tag = "ConnectionBuffer";        
-        private SentroRequest _request;
-        private SentroResponse _response;        
-        private bool _isCacheable;        
+        private const string Tag = "ConnectionBuffer";        
+        private readonly SentroRequest _request;
+        private readonly SentroResponse _response;                
         private FileStream _fileStream;
-        private FileLogger _fileLogger;    
+        private readonly FileLogger _fileLogger;
+
+        public bool LockedForCache { get; set; }
+        public long LockedAt { get; set; }
 
         public ConnectionBuffer(SentroRequest request)
         {            
-            _request = request;    
+            _request = request;
+            _response = new SentroResponse();
+            _fileLogger = FileLogger.GetInstance();
         }
-       
-        public void Buffer(byte[] bytes, int length)
+
+        private void WriteToStream(Packet packet)
         {
-            if (_response == null)
+            if(_fileStream == null)
+                _fileStream = CacheManager.OpenFileWriteStream(_request.RequestUriHashed());
+
+            var orderedPackets = _response.GetOrderedPackets();
+            foreach (var orderedPacket in orderedPackets)
             {
-                _fileLogger = FileLogger.GetInstance();
-                var path = _request.RequestUriHashed();
-                path = FileHierarchy.GetInstance().MapToFilePath(path);
-                _response = new SentroResponse(bytes, length);
-                _isCacheable = CacheManager.IsCacheable(_response);
-                _fileStream = new FileStream(path, FileMode.Append);
-
-                var offset = Offset(bytes, length);
-                //var endOfHeaders = SearchBytes(bytes, length, new byte[] {0x0D, 0x0A, 0x0D, 0x0A});
-                //if(endOfHeaders < 0)
-                //    return;
-                //endOfHeaders += 4;
-
-                _fileStream.Write(bytes, offset, length - offset);
+                _fileLogger.Debug(Tag, "i write packet");
+                _fileStream.Write(orderedPacket.Data, 0, orderedPacket.DataLength);
                 _fileStream.Seek(0, SeekOrigin.End);
+                _fileStream.Flush();
             }
-            else if (_isCacheable)
+        }
+
+        public void AddResponsePacket(Packet packet)
+        {
+            try
             {
-                var offset = Offset(bytes, length);
-                _fileStream.Write(bytes, offset, length - offset);
-                _fileStream.Seek(0, SeekOrigin.End);
-                _response.CapturedLength += length - offset;
+                switch (_response.Cacheable)
+                {
+                    case CacheManager.Cacheable.Yes:
+                        _response.Add(packet);
+                        WriteToStream(packet);
+                        break;
+                    case CacheManager.Cacheable.NotDetermined:
+                        _response.Add(packet);
+                        if (_response.Cacheable == CacheManager.Cacheable.Yes)
+                            WriteToStream(packet);
+                        break;
+                }
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag, e.ToString());
             }
         }
 
@@ -77,15 +89,7 @@ namespace Sentro.Traffic
                 return _response.Complete;
             }
         }
-
-        private int Offset(byte[] bytes, int length)
-        {
-            TCPHeader tcpHeader;
-            IPHeader ipHeader;
-            TrafficManager.GetInstance().Parse(bytes, (uint) length, out tcpHeader, out ipHeader);
-            return HelperFunctions.Offset(tcpHeader, ipHeader);
-        }
-
+              
         private void Reset()
         {
             if (_fileStream == null)
@@ -93,6 +97,12 @@ namespace Sentro.Traffic
 
             _fileStream.Flush();
             _fileStream.Close();
-        }       
+            _fileStream.Dispose();
+        }
+
+        public void Dispose()
+        {
+            Reset();            
+        }        
     }
 }

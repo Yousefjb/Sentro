@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Sentro.Utilities;
 using Sentro.Traffic;
 
@@ -24,42 +25,48 @@ namespace Sentro.Cache
         public static CacheManager GetInstance()
         {
             return _cacheManger ?? (_cacheManger = new CacheManager());
-        }
+        }      
 
-        public void Cache(SentroRequest request, SentroResponse response)
-        {            
-            try
-            {
-                _fileLogger.Debug(Tag,"caching this url " + request.RequestUri());
-                var hash = request.RequestUriHashed();                
-                Writer.WriteAsync(response.ToBytes(),_fileHierarchy.MapToFilePath(hash));              
-            }
-            catch (Exception e)
-            {
-                _fileLogger.Error(Tag,e.ToString());
-            }
-        }
-
-        public static bool IsCacheable(SentroResponse response)
+        public static Cacheable IsCacheable(SentroResponse response)
         {
-            return true;
+            return Cacheable.Yes;
         }
 
-        public SentroResponse Get(SentroRequest request)
+        public static FileStream OpenFileWriteStream(string hash)
+        {
+            var path = _fileHierarchy.MapToFilePath(hash);
+            return File.Open(path, FileMode.Create, FileAccess.Write, FileShare.Read);                       
+        }
+
+        public static FileStream OpenFileReadStream(string hash)
+        {
+            var path = _fileHierarchy.MapToFilePath(hash);
+            return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        }       
+
+        public CacheResponse Get(SentroRequest request)
         {            
             try
             {
                 var hash = request.RequestUriHashed();
-                if (!_fileHierarchy.Exist(hash)) return null;           
-                var bytes = Reader.ReadBytes(_fileHierarchy.MapToFilePath(hash));
-                var response = SentroResponse.CreateFromBytes(bytes, bytes.Length);
-                return response;
+                if (!_fileHierarchy.Exist(hash)) return null;
+                var path = _fileHierarchy.MapToFilePath(hash);
+                FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                var cacheResponse = new CacheResponse(fs);
+                return cacheResponse;
             }
             catch (Exception e)
             {
                 _fileLogger.Error(Tag,e.ToString());
                 return null;
             }
+        }
+
+        public enum Cacheable
+        {
+            Yes,
+            No,
+            NotDetermined
         }
     }
 }

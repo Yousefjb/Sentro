@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Sentro.Utilities
@@ -9,9 +11,10 @@ namespace Sentro.Utilities
     */
     static class Writer
     {
-        public static void Write(string text, StreamWriter file)
+        public static void Write(string text, FileStream file)
         {
-            file.WriteLine(text);
+            var bytes = Encoding.ASCII.GetBytes(text);
+            file.Write(bytes,0,bytes.Length);
         }
         public static async void WriteAsync(string text, StreamWriter file)
         {

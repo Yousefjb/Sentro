@@ -16,18 +16,6 @@ namespace Sentro.Traffic
             if (tcpHeader == null || ipHeader == null)
                 return 0;
             return tcpHeader.HeaderLength*4 + ipHeader.HeaderLength*4;
-        }
-
-        public static bool IsHttpGet(byte[] packetBytes, int offset, uint length)
-        {
-            string http = Encoding.ASCII.GetString(packetBytes, offset, (int)length - offset);
-            return Regex.IsMatch(http, CommonRegex.HttpGet);
-        }
-
-        public static bool IsHttpResponse(byte[] packetBytes, int offset, uint length)
-        {
-            string http = Encoding.ASCII.GetString(packetBytes, offset, (int)length - offset);
-            return Regex.IsMatch(http, CommonRegex.HttpResonse);
-        }
+        }   
     }
 }

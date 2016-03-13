@@ -9,8 +9,7 @@
         public string SourceIp { get; }        
         public ushort SourcePort { get; }        
         public string DestinationIp { get; }        
-        public ushort DestinationPort { get; }
-
+        public ushort DestinationPort { get; }        
         public Connection(string sourceIp, ushort sourcePort, string destinationIp, ushort destinationPort)
         {
             SourceIp = sourceIp;            

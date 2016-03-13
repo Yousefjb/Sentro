@@ -25,28 +25,31 @@ namespace Sentro
                 _handler = ConsoleEventCallback; //used to detect terminiation
                 SetConsoleCtrlHandler(_handler, true); //using mutix and callbacks
                 Console.CancelKeyPress += delegate { CleanUpSentro(); };
-
-                string readLine;
+                var inputHandler = new InputHandler();
+                string command;
                 do
                 {
-                    readLine = ReadLineAsync().Result;
-                    if (readLine.IsNullOrEmpty())
+                    command = ReadLineAsync().Result;
+                    if (command.IsNullOrEmpty())
                         continue;
 
-                    var commands = readLine.Split(' ');
-                    switch (commands[0].ToLower())
+                    var function = command.Split(' ')[0].ToLower();
+                    switch (function)
                     {
                         case "arp":
-                            new Thread(() => InputHandler.Arp(readLine)).Start();
+                            new Thread(() => InputHandler.Arp(command)).Start();
                             break;
                         case "traffic":
-                            InputHandler.Traffic(readLine);
+                            InputHandler.Traffic(command);
                             break;
+                        //case "diverse":
+                        //    inputHandler.Diverse(command);
+                        //    break;                        
                         case "exit":
                             break;
                     }
 
-                } while (readLine != null && !readLine.Equals("exit"));
+                } while (command != null && !command.Equals("exit"));
 
                 CleanUpSentro();
             }

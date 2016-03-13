@@ -76,9 +76,12 @@ namespace Sentro.Utilities
         {
             try
             {
-                Ping ping = new Ping(); //Better to use arp request
+                if (KvStore.IpMac.ContainsKey(ipAddress))
+                    return KvStore.IpMac[ipAddress];
+
+                var ping = new Ping(); //Better to use arp request
                 ping.Send(ipAddress);
-                Process pProcess = new Process
+                var pProcess = new Process
                 {
                     StartInfo =
                     {
@@ -109,33 +112,7 @@ namespace Sentro.Utilities
                 return "";
             }
         }
-
-        public static uint GetSubnetMask(NetworkInterface adapter, string address)
-        {
-            try
-            {
-                foreach (
-                    UnicastIPAddressInformation unicastIpAddressInformation in
-                        adapter.GetIPProperties().UnicastAddresses)
-                {
-                    if (unicastIpAddressInformation.Address.AddressFamily == AddressFamily.InterNetwork)
-                    {
-                        if (address.Equals(unicastIpAddressInformation.Address.ToString()))
-                        {
-                            var bytes = unicastIpAddressInformation.IPv4Mask.GetAddressBytes();
-                            Array.Reverse(bytes);
-                            return BitConverter.ToUInt32(bytes, 0);
-                        }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                _fileLogger.Error(Tag,e.ToString());                
-            }
-            return 0;
-        }
-
+        
         /*
         public static Dictionary<string,string> GetMacAddress(HashSet<string> ipAddresses)
         {

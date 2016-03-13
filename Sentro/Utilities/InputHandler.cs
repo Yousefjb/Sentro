@@ -13,7 +13,12 @@ namespace Sentro.Utilities
     internal class InputHandler
     {
         public const string Tag = "InputHandler";
-       
+
+        public InputHandler()
+        {
+
+        }
+
         /**
         usage samples 
 
@@ -134,6 +139,32 @@ namespace Sentro.Utilities
                 TrafficManager.GetInstance().Stop();
             #endregion
         }
+
+        //static Dictionary<string,TrafficManager> trafficManagers = new Dictionary<string, TrafficManager>();
+        //public void Diverse(string command)
+        //{
+        //    const string pattern = @"^diverse(?<forward> -f)?(?:(?: filter) (?<filter>.*))? (?<action>start|stop)$";
+        //    var result = Regex.Match(command, pattern);
+        //    if (result.Success)
+        //    {
+        //        var forward = result.Groups["forward"].Success;
+        //        var start = result.Groups["action"].Value.Equals("start");
+
+        //        var filter = result.Groups["filter"].Value;
+
+        //        if (trafficManagers.ContainsKey(filter))
+
+
+        //        //TrafficManager diver;
+        //        //if(forward)
+        //        //    diver = new ForwardDiverser();
+        //        //else diver = new Diverser();
+
+
+        //    }
+        //    else 
+        //        Console.WriteLine("Invalid Command");
+        //}
 
     }
 }

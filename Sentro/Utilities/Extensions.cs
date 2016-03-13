@@ -38,5 +38,12 @@ namespace Sentro.Utilities
             return ipBytes.AsReadOnly();
         }
 
+        public static uint Reverse(this uint number)
+        {
+            var bytes = BitConverter.GetBytes(number);
+            Array.Reverse(bytes);
+            return BitConverter.ToUInt32(bytes, 0);
+        }
+
     }
 }
