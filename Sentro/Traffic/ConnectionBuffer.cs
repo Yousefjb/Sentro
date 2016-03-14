@@ -32,9 +32,10 @@ namespace Sentro.Traffic
                 _fileStream = CacheManager.OpenFileWriteStream(_request.RequestUriHashed());
 
             var orderedPackets = _response.GetOrderedPackets();
+            _fileLogger.Debug(Tag,"ordered packet to write : " + orderedPackets.Count);
             foreach (var orderedPacket in orderedPackets)
             {
-                _fileLogger.Debug(Tag, "i write packet");
+                _fileLogger.Debug(Tag,"seq : " + orderedPacket.TcpHeader.SequenceNumber.Reverse());
                 _fileStream.Write(orderedPacket.Data, 0, orderedPacket.DataLength);
                 _fileStream.Seek(0, SeekOrigin.End);
                 _fileStream.Flush();
@@ -45,6 +46,7 @@ namespace Sentro.Traffic
         {
             try
             {
+                _fileLogger.Debug(Tag,"in packet");
                 switch (_response.Cacheable)
                 {
                     case CacheManager.Cacheable.Yes:
@@ -96,8 +98,7 @@ namespace Sentro.Traffic
                 return;
 
             _fileStream.Flush();
-            _fileStream.Close();
-            _fileStream.Dispose();
+            _fileStream.Close();            
         }
 
         public void Dispose()

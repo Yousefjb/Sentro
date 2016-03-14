@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Divert.Net;
 using Sentro.Cache;
 using Sentro.Utilities;
@@ -60,7 +61,7 @@ namespace Sentro.Traffic
 
             var address = new Address();
 
-            var buffer = new byte[2048];
+            var buffer = new byte[4096];
 
             var ipHeader = new IPHeader();
             var tcpHeader = new TCPHeader();
@@ -78,7 +79,6 @@ namespace Sentro.Traffic
                     continue;
                 }
 
-
                 diversion.ParsePacket(buffer, receiveLength, ipHeader, null, null, null, tcpHeader, null);
                 var packet = new Packet(buffer, receiveLength, tcpHeader, ipHeader);
                 try
@@ -88,12 +88,16 @@ namespace Sentro.Traffic
                     
                     /*if already started caching*/
                     if (divertDict.ContainsKey(connection))
-                    {
+                    {                        
+                        //if(address.Direction == DivertDirection.Inbound)
+                            //diversion.SendAsync(buffer, receiveLength, address, ref sendLength);                        
+
                         /*pass - no need to calcualte checksum*/
-                        if (!divertDict[connection].LockedForCache || divertDict[connection].LockedAt > 100000)
+                        if (!divertDict[connection].LockedForCache || (DateTime.Now.Millisecond - divertDict[connection].LockedAt) > 100000)
                         {
                             divertDict[connection].LockedAt = 0;
                             diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
+                            
                             if (isIncomePacket.Invoke(address, packet.DestinationIp))
                             {
                                 if (packet.DataLength > 0)
@@ -101,16 +105,15 @@ namespace Sentro.Traffic
                                     var connectionBuffer = divertDict[connection];
 
                                     connectionBuffer.AddResponsePacket(packet);
-
-                                    _fileLogger.Debug(Tag, "buffered " + receiveLength);
+                                    
                                     /*resposne not complete yet*/
                                     if (connectionBuffer.ResponseCompleted)
-                                    {
-                                        _fileLogger.Debug(Tag, "end of response");
+                                    {                                        
                                         divertDict.Remove(connection);
                                     }
                                 }
                             }
+                                
                             /*end of http response*/
                         }             
                     }
@@ -123,8 +126,7 @@ namespace Sentro.Traffic
                           due to missed request or sentro started after request submit.
                           let it pass
                          */
-                            diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
-                            _fileLogger.Debug(Tag, "passed with no action");
+                            diversion.SendAsync(buffer, receiveLength, address, ref sendLength);                            
                         }
                         else
                         {
@@ -134,8 +136,7 @@ namespace Sentro.Traffic
                                 diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
                             }
                             else //cacheable
-                            {
-                                _fileLogger.Debug(Tag, "this must be http request");
+                            {                                
                                 //dor debug//diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
                                 var cacheResponse = _cacheManager.Get(request);
                                 if (cacheResponse != null)
@@ -147,23 +148,29 @@ namespace Sentro.Traffic
                                     var seq = request.Packet.TcpHeader.AcknowledgmentNumber.Reverse();
                                     var ack = request.Packet.TcpHeader.SequenceNumber.Reverse()
                                               + (uint) request.Packet.DataLength;
-                                                                                
-                                    foreach (var p in cacheResponse.NetworkPackets)
-                                    {
-                                        SetFakeHeaders(p, request.Packet, random++, seq, ack, 0);
-                                        diversion.CalculateChecksums(p.RawPacket, p.RawPacketLength, 0);
-                                        diversion.SendAsync(p.RawPacket, p.RawPacketLength, address, ref sendLength);                                                                                
-                                        seq += p.RawPacketLength - 40;                                                                                
-                                    }
 
-                                    var fin = new Packet(new byte[40], 40, null, null);
-                                    SetFakeHeaders(fin, request.Packet, random, seq, ack, 1);
-                                    diversion.CalculateChecksums(fin.RawPacket, fin.RawPacketLength, 0);
-                                    diversion.SendAsync(fin.RawPacket, fin.RawPacketLength, address, ref sendLength);
-                                    cacheResponse.Close();                                    
-                                    //divertDict[connection].LockedForCache = false;
-                                    //divertDict.Remove(connection);
-                                    /*reset connection*/
+                                    var address2 = new Address
+                                    {
+                                        Direction = address.Direction,
+                                        InterfaceIndex = address.InterfaceIndex,
+                                        SubInterfaceIndex = address.SubInterfaceIndex
+                                    };
+                                    //Task.Run(() =>
+                                    //{
+                                        foreach (var p in cacheResponse.NetworkPackets)
+                                        {
+                                            SetFakeHeaders(p, request.Packet, random++, seq, ack, 0);
+                                            diversion.CalculateChecksums(p.RawPacket, p.RawPacketLength, 0);
+                                            diversion.SendAsync(p.RawPacket, p.RawPacketLength, address2, ref sendLength);
+                                            seq += p.RawPacketLength - 40;
+                                        }
+
+                                        var fin = new Packet(new byte[40], 40, null, null);
+                                        SetFakeHeaders(fin, request.Packet, random, seq, ack, 1);
+                                        diversion.CalculateChecksums(fin.RawPacket, fin.RawPacketLength, 0);
+                                        diversion.SendAsync(fin.RawPacket, fin.RawPacketLength, address2, ref sendLength);
+                                        cacheResponse.Close();
+                                    //});
                                 }
                                 else
                                 {
@@ -302,7 +309,7 @@ namespace Sentro.Traffic
             response.RawPacket[32] = 80;
 
             //flags are ack (16) and psh (8) = 24 and rst (4)
-            response.RawPacket[33] = (byte)(24 + fin); //(byte) (response.RawPacketLength < 1460 ? 25 : 24);
+            response.RawPacket[33] = (byte)(16 + fin);
 
             //windows size 2 bytes
             //set 16383 as defualt

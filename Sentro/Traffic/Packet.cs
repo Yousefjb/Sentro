@@ -1,11 +1,10 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Net;
 using Divert.Net;
 
 namespace Sentro.Traffic
 {
-    public class Packet : IComparable<Packet>
+    public class Packet
     {
         private TCPHeader _tcpHeader;
         private IPHeader _ipHeader;
@@ -55,16 +54,6 @@ namespace Sentro.Traffic
         public uint RawPacketLength => _length;       
 
         public TCPHeader TcpHeader => _tcpHeader;
-        public IPHeader IpHeader => _ipHeader;
-
-        public int CompareTo(Packet other)
-        {
-
-            if (TcpHeader.SequenceNumber > other.TcpHeader.SequenceNumber)
-                return 1;
-            if (TcpHeader.SequenceNumber < other.TcpHeader.SequenceNumber)
-                return -1;
-            return 0;
-        }
+        public IPHeader IpHeader => _ipHeader;       
     }
 }

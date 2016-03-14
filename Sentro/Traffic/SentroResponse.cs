@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Sentro.Cache;
@@ -15,10 +14,11 @@ namespace Sentro.Traffic
     {
         private const string Tag = "SentroResponse";
         private FileLogger _fileLogger;                        
-        private SortedList<Packet,Packet> _packets;        
+        private SortedList<uint,Packet> _packets;        
         public HttpResponseHeaders Headers { get; private set; }
         private int _capturedDataLength;
-        private uint _nextExpectedPacket;
+        private uint _nextExpectedSequence;
+        private uint _currentExpectedSequence;
         public CacheManager.Cacheable Cacheable = CacheManager.Cacheable.NotDetermined;
 
         public SentroResponse()
@@ -28,7 +28,7 @@ namespace Sentro.Traffic
 
         private void Init()
         {            
-            _packets = new SortedList<Packet, Packet>();            
+            _packets = new SortedList<uint, Packet>(new PacketSequenceComparer());                
             _fileLogger = FileLogger.GetInstance();
         }
 
@@ -38,10 +38,12 @@ namespace Sentro.Traffic
             {
                 Headers = ParseHeaders(packet);
                 Cacheable = CacheManager.IsCacheable(this);
-                _nextExpectedPacket = packet.TcpHeader.SequenceNumber.Reverse() + (uint)packet.DataLength;
+                _nextExpectedSequence = packet.TcpHeader.SequenceNumber.Reverse();
+                _currentExpectedSequence = packet.TcpHeader.SequenceNumber;                
             }
-            if (!_packets.ContainsKey(packet))
-                _packets.Add(packet, packet);
+            if (!_packets.ContainsKey(packet.TcpHeader.SequenceNumber))            
+                _packets.Add(packet.TcpHeader.SequenceNumber, packet);
+            
         }
 
         private HttpResponseHeaders ParseHeaders(Packet packet)
@@ -61,16 +63,21 @@ namespace Sentro.Traffic
             while (enume.MoveNext())
             {
                 var p = enume.Current.Value;
-                if (p.TcpHeader.SequenceNumber.Reverse() <= _nextExpectedPacket)
+                _fileLogger.Debug(Tag,"packet seq : " + p.TcpHeader.SequenceNumber);
+                if (p.TcpHeader.SequenceNumber == _currentExpectedSequence)
                 {                    
                     packets.Add(p);
-                    _nextExpectedPacket += (uint) p.DataLength;
+                    _nextExpectedSequence += (uint) p.DataLength;
+                    _currentExpectedSequence = _nextExpectedSequence.Reverse();
                     _capturedDataLength += p.DataLength;
+                    _fileLogger.Debug(Tag, "next expected seq : " + _nextExpectedSequence);
                 }
+                else
+                    break;                
             }
 
             foreach (var p in packets)
-                _packets.Remove(p);
+                _packets.Remove(p.TcpHeader.SequenceNumber);
                         
             return packets;
         }
@@ -81,5 +88,18 @@ namespace Sentro.Traffic
         {
             public int ContentLength { get; set; }        
         }
+
+        public class PacketSequenceComparer : IComparer<uint>
+        {
+            public int Compare(uint x, uint y)
+            {
+                if (x < y)
+                    return 1;
+                if (y > x)
+                    return -1;
+                return 0;
+            }
+        }
+
     }
 }

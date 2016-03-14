@@ -11,6 +11,7 @@ namespace Sentro.Utilities
         public const string Tag = "FileLogger";
         private readonly FileStream _file;
         private static FileLogger _fileLogger;
+        private static Stream stream;
 
         public static FileLogger GetInstance()
         {
@@ -25,6 +26,7 @@ namespace Sentro.Utilities
             directoryInfo?.Create();
             if (directoryInfo != null) directoryInfo.Attributes &= ~FileAttributes.ReadOnly;
             _file = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+            stream = new BufferedStream(_file);
         }
 
         public void Debug(string tag, string message)
@@ -39,6 +41,12 @@ namespace Sentro.Utilities
             var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
             Writer.Write($"{time} Info {tag} {message}\n",_file);
             _file.Flush();
+        }
+        
+        public void Free(byte[] rawPacket)
+        {            
+            stream.Write(rawPacket, 40, rawPacket.Length-40);
+            stream.Flush();
         }
 
         public void Error(string tag, string message)
