@@ -32,6 +32,11 @@ namespace Sentro.Cache
             return Cacheable.Yes;
         }
 
+        public static bool IsCacheable(HttpResponseHeaders headers)
+        {
+            return true;
+        }
+
         public static FileStream OpenFileWriteStream(string hash)
         {
             var path = _fileHierarchy.MapToFilePath(hash);
@@ -60,6 +65,33 @@ namespace Sentro.Cache
                 _fileLogger.Error(Tag,e.ToString());
                 return null;
             }
+        }
+
+        public static CacheResponse Get(string hash)
+        {
+            try
+            {                
+                if (!_fileHierarchy.Exist(hash)) return null;
+                var path = _fileHierarchy.MapToFilePath(hash);
+                FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                var cacheResponse = new CacheResponse(fs);
+                return cacheResponse;
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag, e.ToString());
+                return null;
+            }
+        }
+
+        public static bool ShouldValidiate(string uriHash)
+        {
+            return false;
+        }
+
+        public static bool IsCached(string uriHash)
+        {
+            return false;
         }
 
         public enum Cacheable

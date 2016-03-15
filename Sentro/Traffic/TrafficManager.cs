@@ -34,6 +34,58 @@ namespace Sentro.Traffic
             return _trafficManager ?? (_trafficManager = new TrafficManager());
         }
 
+
+        private void Divert(DivertLayer layer)
+        {
+            const string filter = "tcp.DstPort == 80 or tcp.SrcPort == 80";
+            Diversion diversion;
+
+            try
+            {
+                diversion = Diversion.Open(filter, layer, 100, 0);
+                diversion.SetParam(DivertParam.QueueLength, 4096);
+                diversion.SetParam(DivertParam.QueueTime, 1024);
+            }
+            catch (Exception e)
+            {
+                _fileLogger.Error(Tag, e.ToString());
+                return;
+            }
+
+            if (!diversion.Handle.Valid)
+            {
+                _fileLogger.Error(Tag, $"Failed to open divert handle with error {Marshal.GetLastWin32Error()}");
+                return;
+            }
+
+            var buffer = new byte[2048];
+            var address = new Address();            
+
+            while (_running)
+            {
+                uint receiveLength = 0;                
+
+                if (!diversion.Receive(buffer, address, ref receiveLength))
+                {
+                    _fileLogger.Error(Tag, $"Failed to receive packet with error {Marshal.GetLastWin32Error()}");
+                    continue;
+                }
+
+                var packet = new Packet(buffer,receiveLength);
+
+                var hash = packet.GetHashCode();
+                if (!KvStore.Connections.ContainsKey(hash))
+                    KvStore.Connections.Add(hash,new Connection(diversion,address));
+
+                //Controlling Logic maybe
+
+                KvStore.Connections[hash].Add(packet);
+
+                //Monitoring Logic maybe
+            }
+        }
+
+
         private delegate bool IsIncomePacket(Address address, IPAddress ipAddress);
 
         private void Divert(IsIncomePacket isIncomePacket,DivertLayer layer,string filter)
@@ -140,37 +192,51 @@ namespace Sentro.Traffic
                                 //dor debug//diversion.SendAsync(buffer, receiveLength, address, ref sendLength);
                                 var cacheResponse = _cacheManager.Get(request);
                                 if (cacheResponse != null)
-                                {                                    
-                                    divertDict.Add(connection,new ConnectionBuffer(null) {LockedForCache = true,LockedAt = DateTime.Now.Millisecond});
-                                    address.Direction = DivertDirection.Outbound;
-                                    var random = (ushort) DateTime.Now.Millisecond;                                    
-                                    
+                                {
+                                    divertDict.Add(connection,
+                                        new ConnectionBuffer(null)
+                                        {
+                                            LockedForCache = true,
+                                            LockedAt = DateTime.Now.Millisecond
+                                        });
+                                    var random = (ushort) DateTime.Now.Millisecond;
+
                                     var seq = request.Packet.TcpHeader.AcknowledgmentNumber.Reverse();
                                     var ack = request.Packet.TcpHeader.SequenceNumber.Reverse()
                                               + (uint) request.Packet.DataLength;
 
                                     var address2 = new Address
                                     {
-                                        Direction = address.Direction,
+                                        Direction = DivertDirection.Outbound,
                                         InterfaceIndex = address.InterfaceIndex,
                                         SubInterfaceIndex = address.SubInterfaceIndex
                                     };
-                                    //Task.Run(() =>
-                                    //{
-                                        foreach (var p in cacheResponse.NetworkPackets)
-                                        {
-                                            SetFakeHeaders(p, request.Packet, random++, seq, ack, 0);
-                                            diversion.CalculateChecksums(p.RawPacket, p.RawPacketLength, 0);
-                                            diversion.SendAsync(p.RawPacket, p.RawPacketLength, address2, ref sendLength);
-                                            seq += p.RawPacketLength - 40;
-                                        }
+                                    int i = 0;
+                                    var winSize = request.Packet.TcpHeader.WindowSize;
+                                    foreach (var p in cacheResponse.NetworkPackets)
+                                    {
+                                        SetFakeHeaders(p, request.Packet, random++, seq, ack, 0);
+                                        diversion.CalculateChecksums(p.RawPacket, p.RawPacketLength, 0);
 
-                                        var fin = new Packet(new byte[40], 40, null, null);
-                                        SetFakeHeaders(fin, request.Packet, random, seq, ack, 1);
-                                        diversion.CalculateChecksums(fin.RawPacket, fin.RawPacketLength, 0);
-                                        diversion.SendAsync(fin.RawPacket, fin.RawPacketLength, address2, ref sendLength);
-                                        cacheResponse.Close();
-                                    //});
+                                        if (winSize - (ushort) p.RawPacketLength < 0)
+                                        {
+                                            Task.WaitAll(Task.Delay(1));
+                                            winSize = request.Packet.TcpHeader.WindowSize;
+                                        }
+                                        winSize -= (ushort) p.RawPacketLength;                                        
+                                            
+
+                                        diversion.SendAsync(p.RawPacket, p.RawPacketLength, address2, ref sendLength);
+                                        seq += p.RawPacketLength - 40;
+                                        
+                                    }
+
+                                    var fin = new Packet(new byte[40], 40, null, null);
+                                    SetFakeHeaders(fin, request.Packet, random, seq, ack, 1);
+                                    diversion.CalculateChecksums(fin.RawPacket, fin.RawPacketLength, 0);
+                                    diversion.SendAsync(fin.RawPacket, fin.RawPacketLength, address2, ref sendLength);
+                                    cacheResponse.Close();
+
                                 }
                                 else
                                 {
@@ -308,8 +374,8 @@ namespace Sentro.Traffic
             //0101 0000 -> 80
             response.RawPacket[32] = 80;
 
-            //flags are ack (16) and psh (8) = 24 and rst (4)
-            response.RawPacket[33] = (byte)(16 + fin);
+            //flags are ack (16) and psh (8) = 24
+            response.RawPacket[33] = (byte)(24 + fin);
 
             //windows size 2 bytes
             //set 16383 as defualt

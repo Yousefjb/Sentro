@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Text;
 using PcapDotNet.Base;
 using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.IpV4;
@@ -43,6 +44,40 @@ namespace Sentro.Utilities
             var bytes = BitConverter.GetBytes(number);
             Array.Reverse(bytes);
             return BitConverter.ToUInt32(bytes, 0);
+        }
+
+        public static string MurmurHash(this string url)
+        {
+            return Murmur2.HashX8(url,Encoding.ASCII);
+        }
+
+        public static string NormalizeUri(this string url)
+        {
+            url = new UriBuilder(url).Uri.ToString();
+
+            var i = url.IndexOf("#", StringComparison.Ordinal);
+            if (i != -1)
+                url = url.Remove(i);
+
+            url = url.Replace("//", "/");
+
+            url = url.Replace("www.", "");
+
+            // Sorting query parameters
+            var queryString = url.Substring(url.IndexOf('?') + 1).Split('&');
+            Array.Sort(queryString);
+
+            var builder = new StringBuilder();
+            builder.Append(url.Substring(0, url.IndexOf('?') + 1));
+
+            foreach (var value in queryString)
+            {
+                builder.Append(value);
+                builder.Append('&');
+            }
+            builder.Remove(builder.Length - 1, 1);
+            url = builder.ToString();
+            return url;
         }
 
     }

@@ -82,12 +82,7 @@ namespace Sentro.Traffic
             return packets;
         }
 
-        public bool Complete => _capturedDataLength == Headers.ContentLength;                    
-
-        public class HttpResponseHeaders
-        {
-            public int ContentLength { get; set; }        
-        }
+        public bool Complete => _capturedDataLength == Headers.ContentLength;                           
 
         public class PacketSequenceComparer : IComparer<uint>
         {
