@@ -149,13 +149,13 @@ namespace Sentro.Traffic
                 else if (rawPacket.IsHttpGet())
                 {
                     hashOfLastHttpGet = rawPacket.Uri.NormalizeUri().MurmurHash();
-                    if (CacheManager.IsCached(hashOfLastHttpGet))
+                    if (await CacheManager.IsCached(hashOfLastHttpGet))
                     {
                         //if (CacheManager.ShouldValidiate(hashOfLastHttpGet))
                         //    Validate();
-                        var response = CacheManager.Get(hashOfLastHttpGet);
+                        var response = await CacheManager.Get(hashOfLastHttpGet);
                         CurrentState = State.SendingCache;
-                        SendCacheResponse(response,rawPacket);
+                        SendCacheResponseAsync(response,rawPacket);
                     }
                     else
                         SendAsync(rawPacket);
@@ -171,7 +171,7 @@ namespace Sentro.Traffic
                     SendAsync(rawPacket);
                 else if (rawPacket.IsHttpResponse())
                 {
-                    if (CacheManager.IsCacheable(rawPacket.HttpResponseHeaders))
+                    if (await CacheManager.IsCacheable(rawPacket.HttpResponseHeaders))
                     {
                         CurrentState = State.Caching;
                         Caching(rawPacket);
@@ -187,7 +187,7 @@ namespace Sentro.Traffic
 
         private async void Closing(Packet rawPacket)
         {            
-            diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref sentLength);
+            SendAsync(rawPacket);
             if(rawPacket.Ack)
                 CurrentState = State.Closed;
             else if(rawPacket.Syn)
@@ -216,7 +216,7 @@ namespace Sentro.Traffic
 
         }
 
-        private async void SendCacheResponse(CacheResponse response, Packet requestPacket)
+        private async void SendCacheResponseAsync(CacheResponse response, Packet requestPacket)
         {
             await Task.Run(() =>
             {

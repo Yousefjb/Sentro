@@ -70,40 +70,34 @@ namespace Sentro.Traffic
             return ((SrcIp.GetHashCode() ^ SrcPort.GetHashCode()) as object).GetHashCode() ^
                    ((DestIp.GetHashCode() ^ DestPort.GetHashCode()) as object).GetHashCode();
         }
-
-        private uint _srcIp = 0;
-        public uint SrcIp 
+        
+        public uint DestIp => BitConverter.ToUInt32(new[]
         {
-            get
-            {                
-                return 0;                
-            }
-        }
+            _packet[19],
+            _packet[18],
+            _packet[17],
+            _packet[16]
+        }, 0);
 
-        private short _srcPort = 0;
-        public ushort SrcPort
-        { 
-            get { return 0; }
-        }
-
-        private uint _dstIp = 0;
-        public uint DestIp
+        public ushort SrcPort => BitConverter.ToUInt16(new[]
         {
-            get { return 0; }
-        }
+            _packet[TcpStart + 1],
+            _packet[TcpStart + 0]
+        }, 0);
 
-        private short _dstPort = 0;
-        public ushort DestPort
+        public uint SrcIp => BitConverter.ToUInt32(new[]
         {
-            get { return 0; }
-        }
+            _packet[15],
+            _packet[14],
+            _packet[13],
+            _packet[12]
+        }, 0);
 
-        public bool Fin => (_packet[TcpStart + 13] & 1) == 1;
-        public bool Syn => (_packet[TcpStart + 13] & 2) == 1;
-        public bool Rst => (_packet[TcpStart + 13] & 4) == 1;
-        public bool Ack => (_packet[TcpStart + 13] & 16) == 1;
-        public bool SynAck => Syn && Ack;
-        public bool FinAck => Fin && Ack;
+        public ushort DestPort => BitConverter.ToUInt16(new[]
+        {
+            _packet[TcpStart + 3],
+            _packet[TcpStart + 2]
+        }, 0);
 
         public uint AckNumber => BitConverter.ToUInt32(new[]
         {
@@ -120,6 +114,15 @@ namespace Sentro.Traffic
             _packet[TcpStart + 5],
             _packet[TcpStart + 4]
         }, 0);
+
+        public bool Fin => (_packet[TcpStart + 13] & 1) == 1;
+        public bool Syn => (_packet[TcpStart + 13] & 2) == 1;
+        public bool Rst => (_packet[TcpStart + 13] & 4) == 1;
+        public bool Ack => (_packet[TcpStart + 13] & 16) == 1;
+        public bool SynAck => Syn && Ack;
+        public bool FinAck => Fin && Ack;
+
+
 
         private string uri = "";
         public bool IsHttpGet()

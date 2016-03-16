@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using Sentro.Utilities;
 using Sentro.Traffic;
 
@@ -32,9 +33,11 @@ namespace Sentro.Cache
             return Cacheable.Yes;
         }
 
-        public static bool IsCacheable(HttpResponseHeaders headers)
+        public static async Task<bool> IsCacheable(HttpResponseHeaders headers)
         {
-            return true;
+            bool result = false;
+            await Task.Run(() => { result = false; });
+            return result;
         }
 
         public static FileStream OpenFileWriteStream(string hash)
@@ -67,21 +70,26 @@ namespace Sentro.Cache
             }
         }
 
-        public static CacheResponse Get(string hash)
+        public static async Task<CacheResponse> Get(string hash)
         {
+            CacheResponse cacheResponse = null;
             try
-            {                
-                if (!_fileHierarchy.Exist(hash)) return null;
-                var path = _fileHierarchy.MapToFilePath(hash);
-                FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                var cacheResponse = new CacheResponse(fs);
-                return cacheResponse;
+            {
+                await Task.Run(() =>
+                {
+                    if (!_fileHierarchy.Exist(hash)) return null;
+                    var path = _fileHierarchy.MapToFilePath(hash);
+                    FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    cacheResponse = new CacheResponse(fs);
+                    return cacheResponse;
+                });
             }
             catch (Exception e)
             {
-                _fileLogger.Error(Tag, e.ToString());
-                return null;
+                _fileLogger.Error(Tag, e.ToString());                
             }
+
+            return cacheResponse;
         }
 
         public static bool ShouldValidiate(string uriHash)
@@ -89,9 +97,11 @@ namespace Sentro.Cache
             return false;
         }
 
-        public static bool IsCached(string uriHash)
+        public static async Task<bool> IsCached(string uriHash)
         {
-            return false;
+            bool result = false;
+            await Task.Run(() => { result = false; });
+            return result;
         }
 
         public enum Cacheable
