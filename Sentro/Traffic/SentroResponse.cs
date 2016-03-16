@@ -28,7 +28,7 @@ namespace Sentro.Traffic
 
         private void Init()
         {            
-            _packets = new SortedList<uint, Packet>(new PacketSequenceComparer());                
+            _packets = new SortedList<uint, Packet>(new PacketSequenceComparerOld());                
             _fileLogger = FileLogger.GetInstance();
         }
 
@@ -82,19 +82,18 @@ namespace Sentro.Traffic
             return packets;
         }
 
-        public bool Complete => _capturedDataLength == Headers.ContentLength;                           
+        public bool Complete => _capturedDataLength == Headers.ContentLength;
 
-        public class PacketSequenceComparer : IComparer<uint>
+        private class PacketSequenceComparerOld : IComparer<uint>
         {
             public int Compare(uint x, uint y)
             {
-                if (x < y)
+                if (x > y)
                     return 1;
-                if (y > x)
+                if (y < x)
                     return -1;
                 return 0;
             }
         }
-
     }
 }

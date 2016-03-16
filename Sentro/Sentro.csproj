@@ -102,9 +102,9 @@
     <Compile Include="Cache\Normalizer.cs" />
     <Compile Include="Traffic\Diverser.cs" />
     <Compile Include="Traffic\ForwardDiverser.cs" />
-    <Compile Include="Traffic\HelperFunctions.cs" />
     <Compile Include="Traffic\HttpResponseHeaders.cs" />
     <Compile Include="Traffic\Packet.cs" />
+    <Compile Include="Traffic\PacketSequenceComparer.cs" />
     <Compile Include="Traffic\SentroRequest.cs" />
     <Compile Include="Traffic\SentroResponse.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />

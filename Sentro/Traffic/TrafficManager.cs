@@ -75,7 +75,7 @@ namespace Sentro.Traffic
 
                 var hash = packet.GetHashCode();
                 if (!KvStore.Connections.ContainsKey(hash))
-                    KvStore.Connections.Add(hash,new Connection(diversion,address));
+                    KvStore.Connections.Add(hash, new Connection(diversion, address) {HashCode = hash});
 
                 //Controlling Logic maybe
 
@@ -205,37 +205,31 @@ namespace Sentro.Traffic
                                     var ack = request.Packet.TcpHeader.SequenceNumber.Reverse()
                                               + (uint) request.Packet.DataLength;
 
-                                    var address2 = new Address
-                                    {
-                                        Direction = DivertDirection.Outbound,
-                                        InterfaceIndex = address.InterfaceIndex,
-                                        SubInterfaceIndex = address.SubInterfaceIndex
-                                    };
                                     int i = 0;
-                                    var winSize = request.Packet.TcpHeader.WindowSize;
+                                    //var winSize = request.Packet.TcpHeader.WindowSize;
+
                                     foreach (var p in cacheResponse.NetworkPackets)
                                     {
                                         SetFakeHeaders(p, request.Packet, random++, seq, ack, 0);
                                         diversion.CalculateChecksums(p.RawPacket, p.RawPacketLength, 0);
 
-                                        if (winSize - (ushort) p.RawPacketLength < 0)
-                                        {
-                                            Task.WaitAll(Task.Delay(1));
-                                            winSize = request.Packet.TcpHeader.WindowSize;
-                                        }
-                                        winSize -= (ushort) p.RawPacketLength;                                        
-                                            
+                                        //if (winSize - (ushort) p.RawPacketLength < 0)
+                                        //{
+                                        //    winSize = request.Packet.TcpHeader.WindowSize;
+                                        //}
+                                        //winSize -= (ushort) p.RawPacketLength;
 
-                                        diversion.SendAsync(p.RawPacket, p.RawPacketLength, address2, ref sendLength);
+                                        diversion.SendAsync(p.RawPacket, p.RawPacketLength, address, ref sendLength);
                                         seq += p.RawPacketLength - 40;
-                                        
+
                                     }
 
                                     var fin = new Packet(new byte[40], 40, null, null);
                                     SetFakeHeaders(fin, request.Packet, random, seq, ack, 1);
                                     diversion.CalculateChecksums(fin.RawPacket, fin.RawPacketLength, 0);
-                                    diversion.SendAsync(fin.RawPacket, fin.RawPacketLength, address2, ref sendLength);
+                                    diversion.SendAsync(fin.RawPacket, fin.RawPacketLength, address, ref sendLength);
                                     cacheResponse.Close();
+
 
                                 }
                                 else
@@ -276,12 +270,14 @@ namespace Sentro.Traffic
 
         private void DivertForwardMode()
         {
-            Divert(ForwardDiverser.IsIncomePacket,DivertLayer.NetworkForward,ForwardDiverser.DefaultFilter);
+            //Divert(ForwardDiverser.IsIncomePacket,DivertLayer.NetworkForward,ForwardDiverser.DefaultFilter);
+            Divert(DivertLayer.NetworkForward);
         }
 
         private void DivertNormalMode()
         {
-            Divert(Diverser.IsIncomePacket, DivertLayer.Network, Diverser.DefaultFilter);
+            //Divert(Diverser.IsIncomePacket, DivertLayer.Network, Diverser.DefaultFilter);
+            Divert(DivertLayer.Network);
         }
      
         private void SetFakeHeaders(Packet response,Packet request,ushort random,uint seq,uint ack,byte fin)

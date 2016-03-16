@@ -1,31 +1,39 @@
 ﻿using System;
 using System.Linq;
 using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 using Divert.Net;
+using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
     public class Packet
     {
+        private const string Tag = "Packet";
         private TCPHeader _tcpHeader;
         private IPHeader _ipHeader;
         private byte[] _packet;
         private uint _length;
+        private FileLogger _fileLogger;
 
         public Packet(byte[] rawPacket, uint packetLength, TCPHeader parsedTcpHeader, IPHeader parsedIpHeader)
         {
             _tcpHeader = parsedTcpHeader;
             _ipHeader = parsedIpHeader;
             _packet = rawPacket;
-            _length = packetLength;
+            _length = packetLength;            
         }
 
-        private int TcpStart;
+        private int TcpStart,TcpHeaderLength;
+
         public Packet(byte[] rawPacket, uint packetLength)
         {
+            _fileLogger = FileLogger.GetInstance();
             _packet = rawPacket;
             _length = packetLength;
-             TcpStart = (rawPacket[0] & 15) * 5;
+            TcpStart = (rawPacket[0] & 15)*4;
+            TcpHeaderLength = (rawPacket[TcpStart + 12] >> 4)*4;
         }
 
         public IPAddress SourceIp
@@ -115,41 +123,72 @@ namespace Sentro.Traffic
             _packet[TcpStart + 4]
         }, 0);
 
+        public ushort WindowSize => BitConverter.ToUInt16(new[]
+        {
+            _packet[TcpStart + 15],
+            _packet[TcpStart + 14]
+        }, 0);
+
+        public int DataStart => TcpStart + TcpHeaderLength;        
+        public int DataLengthV2 => (int) _length - DataStart;
+
         public bool Fin => (_packet[TcpStart + 13] & 1) == 1;
-        public bool Syn => (_packet[TcpStart + 13] & 2) == 1;
-        public bool Rst => (_packet[TcpStart + 13] & 4) == 1;
-        public bool Ack => (_packet[TcpStart + 13] & 16) == 1;
+        public bool Syn => (_packet[TcpStart + 13] & 2) == 2;
+        public bool Rst => (_packet[TcpStart + 13] & 4) == 4;
+        public bool Ack => (_packet[TcpStart + 13] & 16) == 16;
         public bool SynAck => Syn && Ack;
         public bool FinAck => Fin && Ack;
 
 
 
         private string uri = "";
+
         public bool IsHttpGet()
-        {
+        {            
+            var ascii = Encoding.ASCII.GetString(_packet, DataStart, (int) _length - DataStart);            
+            _fileLogger.Debug(Tag,ascii);
+            var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch, RegexOptions.Multiline);            
+            if (result.Success)
+            {
+                var host = result.Groups["host"].Value.Trim();
+                var path = result.Groups["path"].Value.Trim();
+                uri = host + path;                          
+                return true;
+            }
             return false;
         }
 
         public bool IsHttpResponse()
         {
-            return false;
+            return HttpResponseHeaders != null;
         }
+
+        private HttpResponseHeaders _httpResponseHeaders;
 
         public HttpResponseHeaders HttpResponseHeaders
         {
-            get { return null; }
+            get
+            {
+                if (_httpResponseHeaders != null)
+                    return _httpResponseHeaders;
+
+                _httpResponseHeaders = new HttpResponseHeaders();
+                var ascii = Encoding.ASCII.GetString(_packet, DataStart, (int) _length - DataStart);
+                var result = Regex.Match(ascii, CommonRegex.HttpContentLengthMatch,
+                    RegexOptions.IgnoreCase | RegexOptions.Multiline);
+                _httpResponseHeaders.ContentLength = result.Success ? Convert.ToInt32(result.Groups[1].Value) : 0;
+                return _httpResponseHeaders;
+            }
         }
 
         public string Uri
         {
             get
             {
-                if (uri.Length == 0)
-                {
-                    uri = "";
-                }
-
-                return uri;
+                var requestUri = uri;
+                if (requestUri.Length == 0)
+                    requestUri = IsHttpGet() ? uri : "";
+                return requestUri;
             }
         }
     }
