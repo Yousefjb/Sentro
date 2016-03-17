@@ -129,6 +129,27 @@ namespace Sentro.Traffic
             _packet[TcpStart + 14]
         }, 0);
 
+        public byte WindowScale
+        {
+            get
+            {
+                var i = TcpStart + 20;
+                var j = TcpStart + TcpHeaderLength;
+                while (i < j)                       
+                {
+                    if (_packet[i] == 1)
+                        i++;
+                    else if (_packet[i] == 2)
+                        i += 4;
+                    else if (_packet[i] == 4)
+                        i += 2;
+                    else if (_packet[i] == 3)
+                        return _packet[i + 2];
+                }
+                return 0;
+            }
+        }
+
         public int DataStart => TcpStart + TcpHeaderLength;        
         public int DataLengthV2 => (int) _length - DataStart;
 
@@ -138,7 +159,7 @@ namespace Sentro.Traffic
         public bool Ack => (_packet[TcpStart + 13] & 16) == 16;
         public bool SynAck => Syn && Ack;
         public bool FinAck => Fin && Ack;
-
+        
 
 
         private string uri = "";

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Timers;
 using Divert.Net;
 using Sentro.Cache;
@@ -62,7 +61,7 @@ namespace Sentro.Traffic
             this.address = address;
             timeoutTimer = new System.Timers.Timer();
             timeoutTimer.Elapsed += OnTimeout;
-            timeoutTimer.Interval = 1*60*1000;//1 min * 60 s * 1000 ms
+            timeoutTimer.Interval = 30*1000;//30 s * 1000 ms
             timeoutTimer.Enabled = true;
             _fileLogger = FileLogger.GetInstance();      
             _fileLogger.Debug(Tag,"new connection");            
@@ -75,10 +74,15 @@ namespace Sentro.Traffic
             ClearResources();
         }
 
-        private void ClearResources()
+        public void ClearResources()
         {
-            _cachingFileStream.Close();
-            _cachingFileStream.Dispose();
+            if (_cachingFileStream != null)
+            {
+                _cachingFileStream.Flush();
+                _cachingFileStream.Close();
+                _cachingFileStream.Dispose();
+            }
+
             _orderedPackets = null;
             if (CurrentState.HasFlag(State.Caching))
                 CacheManager.Delete(HashCode);
@@ -151,11 +155,13 @@ namespace Sentro.Traffic
 
         }
 
+        private byte WindowScale;
         private void Closed(Packet rawPacket)
         {                   
             if (rawPacket.Syn)
             {
                 CurrentState = State.Establishing;
+                WindowScale = rawPacket.WindowScale;
                 _fileLogger.Debug(Tag, "closed:syn -> establishing");
             }
             else if (rawPacket.SynAck)
@@ -170,10 +176,14 @@ namespace Sentro.Traffic
             }
             SendAsync(rawPacket);
         }
-
+             
         private void Establishing(Packet rawPacket)
         {
-            if (rawPacket.Ack)
+            if (rawPacket.SynAck)
+            {                
+                _fileLogger.Debug(Tag, $"establishing:syn ack -> establishing window scale {WindowScale}");
+            }
+            else if (rawPacket.Ack)
             {
                 CurrentState = State.Established;
                 _fileLogger.Debug(Tag, "establishing:ack -> established");
@@ -417,8 +427,8 @@ namespace Sentro.Traffic
             var destPort = rawPacket.DestPort;
             if (destPort == 80 || destPort == 443)
             {
-                pauseSendingCache = rawPacket.WindowSize < 3000;
-                _fileLogger.Debug(Tag, $"sendingCache: paused -> {pauseSendingCache}");
+                pauseSendingCache = (rawPacket.WindowSize*(1 << WindowScale)) < 3000;
+                _fileLogger.Debug(Tag, $"sendingCache: paused : windowSize {rawPacket.WindowSize}-> {pauseSendingCache}");
                 if (rawPacket.Fin || rawPacket.Rst)
                 {
                     CurrentState = State.Closing;
@@ -461,37 +471,54 @@ namespace Sentro.Traffic
             //manage connection close
             //manage connection keep open
         }
-        
-        private async void SendCacheResponseAsync(CacheResponse response, Packet requestPacket)
+
+        private void SendCacheResponseAsync(CacheResponse response, Packet requestPacket)
         {
-            await Task.Run(() =>
-            {                
-                var random = (ushort)DateTime.Now.Millisecond;
+            var random = (ushort) DateTime.Now.Millisecond;
 
-                var seq  = requestPacket.AckNumber;
-                var ack = requestPacket.SeqNumber + (uint)requestPacket.DataLengthV2;
-                                
-                foreach (var packet in response.NetworkPackets)
+            var seq = requestPacket.AckNumber;
+            var ack = requestPacket.SeqNumber + (uint) requestPacket.DataLengthV2;
+
+            foreach (var packet in response.NetworkPackets)
+            {
+                if (CurrentState.HasFlag(State.Closed) || CurrentState.HasFlag(State.Closing))
                 {
-                    if (CurrentState.HasFlag(State.Closed) || CurrentState.HasFlag(State.Closing))
-                    {
-                        _fileLogger.Debug(Tag, "sendcacheasync:closed | closing -> break");
-                        break;
-                    }
-
-                    SetFakeHeaders(packet, requestPacket, random++, seq, ack, 0);
-                    _fileLogger.Debug(Tag, "sendcacheasync:fakeheaders -> set");
-                    SpinWait.SpinUntil(() => pauseSendingCache == false);                    
-                    _fileLogger.Debug(Tag, "sendcacheasync:spin -> done");
-                    diversion.CalculateChecksums(packet.RawPacket, packet.RawPacketLength, 0);
-                    SendAsync(packet);
-                    seq += packet.RawPacketLength - 40;                    
+                    _fileLogger.Debug(Tag, "sendcacheasync:closed | closing -> break");
+                    break;
                 }
-                response.Close();
-                CurrentState = State.SentCache;
-                _fileLogger.Debug(Tag, "sendcacheasync:resp close -> sentcache");
-            });
+
+                SetFakeHeaders(packet, requestPacket, random++, seq, ack, 0);
+                _fileLogger.Debug(Tag, "sendcacheasync:fakeheaders -> set");
+                SpinWait.SpinUntil(() => pauseSendingCache == false);
+                _fileLogger.Debug(Tag, "sendcacheasync:spin -> done");
+                diversion.CalculateChecksums(packet.RawPacket, packet.RawPacketLength, 0);
+                SendAsync(packet);
+                seq += packet.RawPacketLength - 40;
+                //recivePacketEx();
+            }
+            response.Close();
+            CurrentState = State.SentCache;
+            _fileLogger.Debug(Tag, "sendcacheasync:resp close -> sentcache");
         }
+
+        byte[] secondaryBuffer = new byte[2000];
+
+        private void recivePacketEx()
+        {
+            uint recivelength = 0;
+            diversion.Receive(secondaryBuffer, address, ref recivelength);
+            var newPacket = new Packet(secondaryBuffer, recivelength);
+            var hash = newPacket.GetHashCode();
+            if (!KvStore.Connections.ContainsKey(hash))
+                KvStore.Connections.Add(hash, new Connection(diversion, address) {HashCode = hash});
+
+            //Controlling Logic maybe
+
+            KvStore.Connections[hash].Add(newPacket);
+            //SendAsync(newPacket);
+
+            //Monitoring Logic maybe
+        }    
 
         private void SetFakeHeaders(Packet response, Packet request, ushort random, uint seq, uint ack, byte fin)
         {

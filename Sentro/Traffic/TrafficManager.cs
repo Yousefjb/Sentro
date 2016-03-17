@@ -205,7 +205,7 @@ namespace Sentro.Traffic
                                     var ack = request.Packet.TcpHeader.SequenceNumber.Reverse()
                                               + (uint) request.Packet.DataLength;
 
-                                    int i = 0;
+                                    //int i = 0;
                                     //var winSize = request.Packet.TcpHeader.WindowSize;
 
                                     foreach (var p in cacheResponse.NetworkPackets)
@@ -255,7 +255,17 @@ namespace Sentro.Traffic
 
         public void Stop()
         {
-            _running = false;                       
+            try
+            {
+                foreach (var connection in KvStore.Connections.Values)
+                {
+                    connection.ClearResources();
+                }
+                _running = false;
+            }
+            catch (Exception e)
+            {                                
+            }                 
         }
 
         public void Start()
