@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Text;
+using System.Threading;
 
 namespace Sentro.Utilities
 {
@@ -11,7 +13,7 @@ namespace Sentro.Utilities
         public const string Tag = "FileLogger";
         private readonly FileStream _file;
         private static FileLogger _fileLogger;
-        private static Stream stream;
+        private static uint index;        
 
         public static FileLogger GetInstance()
         {
@@ -25,40 +27,36 @@ namespace Sentro.Utilities
             var directoryInfo = new FileInfo(path).Directory;
             directoryInfo?.Create();
             if (directoryInfo != null) directoryInfo.Attributes &= ~FileAttributes.ReadOnly;
-            _file = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
-            stream = new BufferedStream(_file);
-        }
-
-        public void Debug(string tag, string message)
-        {            
-            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            Writer.Write($"{time} Debug {tag} {message}\n", _file);
-            _file.Flush();
-        }
-
-        public void Info(string tag, string message)
+            _file = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+        }        
+                
+        public async void Debug(string tag, string message)
         {
-            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            Writer.Write($"{time} Info {tag} {message}\n",_file);
-            _file.Flush();
-        }
-        
-        public void Free(byte[] rawPacket)
-        {            
-            stream.Write(rawPacket, 40, rawPacket.Length-40);
-            stream.Flush();
+            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
+            await _file.WriteAsync(bytes, 0, bytes.Length);
+            await _file.FlushAsync();
         }
 
-        public void Error(string tag, string message)
+        public async void Info(string tag, string message)
         {
-            var time = $"{DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            Writer.Write($"{time} Error {tag} {message}\n",_file);
-            _file.Flush();
+            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            var bytes = Encoding.ASCII.GetBytes($"{time} Info {tag} {message}\n");
+            await _file.WriteAsync(bytes, 0, bytes.Length);
+            await _file.FlushAsync();
+        }
+
+        public async void Error(string tag, string message)
+        {
+            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            var bytes = Encoding.ASCII.GetBytes($"{time} Error {tag} {message}\n");
+            await _file.WriteAsync(bytes, 0, bytes.Length);
+            await _file.FlushAsync();
         }
 
         public void Dispose()
-        {
+        {            
             _file.Close();
         }
-    }
+    }   
 }

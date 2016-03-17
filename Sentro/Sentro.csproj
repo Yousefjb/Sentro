@@ -99,17 +99,12 @@
     <Compile Include="ARP\IArpSpoofer.cs" />
     <Compile Include="Cache\CacheManager.cs" />
     <Compile Include="Cache\CacheResponse.cs" />
-    <Compile Include="Cache\Normalizer.cs" />
     <Compile Include="Traffic\Diverser.cs" />
     <Compile Include="Traffic\ForwardDiverser.cs" />
     <Compile Include="Traffic\HttpResponseHeaders.cs" />
     <Compile Include="Traffic\Packet.cs" />
-    <Compile Include="Traffic\PacketSequenceComparer.cs" />
-    <Compile Include="Traffic\SentroRequest.cs" />
-    <Compile Include="Traffic\SentroResponse.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />
     <Compile Include="Traffic\Connection.cs" />
-    <Compile Include="Traffic\ConnectionBuffer.cs" />
     <Compile Include="Traffic\TrafficManager.cs" />
     <Compile Include="Utilities\CommonRegex.cs" />
     <Compile Include="Utilities\Extensions.cs" />
@@ -124,9 +119,7 @@
     <Compile Include="Utilities\NetworkUtilites.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utilities\Reader.cs" />
     <Compile Include="Utilities\Settings.cs" />
-    <Compile Include="Utilities\Writer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

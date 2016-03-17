@@ -9,110 +9,77 @@ namespace Sentro.Cache
     /*
         Responsibility : hold the logic of caching process
     */
-    internal class CacheManager
+    internal static class CacheManager
     {
-        public const string Tag = "CacheManager";
+        private const string Tag = "CacheManager";
+        
+        private static readonly FileHierarchy FileHierarchy;
+        private static readonly FileLogger FileLogger;
 
-        private static CacheManager _cacheManger;
-        private static FileHierarchy _fileHierarchy;
-        private static FileLogger _fileLogger;
-
-        private CacheManager()
+        static CacheManager()
         {
-            _fileHierarchy = FileHierarchy.GetInstance();
-            _fileLogger = FileLogger.GetInstance();
-        }
+            FileHierarchy = FileHierarchy.GetInstance();
+            FileLogger = FileLogger.GetInstance();
+        }     
 
-        public static CacheManager GetInstance()
+        public async static Task<bool> IsCacheable(HttpResponseHeaders headers)
         {
-            return _cacheManger ?? (_cacheManger = new CacheManager());
-        }      
-
-        public static Cacheable IsCacheable(SentroResponse response)
-        {
-            return Cacheable.Yes;
-        }
-
-        public static bool IsCacheable(HttpResponseHeaders headers)
-        {
-            bool result = true;           
+            bool result = false;
+            await Task.Run(() =>
+            {
+                result = true;                
+            });
             return result;
         }
 
-        public static FileStream OpenFileWriteStream(string hash)
+        public static async Task<FileStream> OpenFileWriteStream(string hash)
         {
-            var path = _fileHierarchy.MapToFilePath(hash);
-            return File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);                       
-        }
-
-        public static FileStream OpenFileReadStream(string hash)
-        {
-            var path = _fileHierarchy.MapToFilePath(hash);
-            return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        }
-
-        public static void Delete(int hash)
-        {
-            Delete(hash.ToString("X8"));
-        }
-
-        public static void Delete(string hash)
-        {
-            File.Delete(_fileHierarchy.MapToFilePath(hash));
-        }
-
-        public CacheResponse Get(SentroRequest request)
-        {            
-            try
+            FileStream result = null;
+            await Task.Run(() =>
             {
-                var hash = request.RequestUriHashed();
-                if (!_fileHierarchy.Exist(hash)) return null;
-                var path = _fileHierarchy.MapToFilePath(hash);
-                FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                var cacheResponse = new CacheResponse(fs);
-                return cacheResponse;
-            }
-            catch (Exception e)
-            {
-                _fileLogger.Error(Tag,e.ToString());
-                return null;
-            }
+                var path = FileHierarchy.MapToFilePath(hash);
+                result = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+            });
+            return result;
         }
 
-        public static CacheResponse Get(string hash)
+        public static async Task Delete(int hash)
+        {
+            await Task.Run(() =>
+            {
+                File.Delete(FileHierarchy.MapToFilePath(hash.ToString("X8")));
+            });
+        }
+
+        public static async Task<CacheResponse> Get(string hash)
         {
             CacheResponse cacheResponse = null;
-            try
+            await Task.Run(() =>
             {
-                if (!_fileHierarchy.Exist(hash)) return null;
-                var path = _fileHierarchy.MapToFilePath(hash);
-                FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                cacheResponse = new CacheResponse(fs);
-                return cacheResponse;
-            }
-            catch (Exception e)
-            {
-                _fileLogger.Error(Tag, e.ToString());
-            }
+                try
+                {
+                    if (!FileHierarchy.Exist(hash)) return;
+                    var path = FileHierarchy.MapToFilePath(hash);
+                    FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    cacheResponse = new CacheResponse(fs);
+                }
+                catch (Exception e)
+                {
+                    FileLogger.Error(Tag, e.ToString());
+                }
+            });
 
             return cacheResponse;
         }
 
-        public static bool ShouldValidiate(string uriHash)
+        public static async Task<bool> IsCached(string uriHash)
         {
-            return false;
-        }
-
-        public static bool IsCached(string uriHash)
-        {
-            return _fileHierarchy.Exist(uriHash);
-        }
-
-        public enum Cacheable
-        {
-            Yes,
-            No,
-            NotDetermined
-        }
+            bool result = false;
+            await Task.Run(() =>
+            {
+                result = FileHierarchy.Exist(uriHash);
+            });
+            return result;
+        }       
     }
 }

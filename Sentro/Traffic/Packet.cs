@@ -1,29 +1,17 @@
 ﻿using System;
-using System.Linq;
-using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
-using Divert.Net;
+using System.Threading.Tasks;
 using Sentro.Utilities;
 
 namespace Sentro.Traffic
 {
     public class Packet
     {
-        private const string Tag = "Packet";
-        private TCPHeader _tcpHeader;
-        private IPHeader _ipHeader;
+        private const string Tag = "Packet";        
         private byte[] _packet;
         private uint _length;
-        private FileLogger _fileLogger;
-
-        public Packet(byte[] rawPacket, uint packetLength, TCPHeader parsedTcpHeader, IPHeader parsedIpHeader)
-        {
-            _tcpHeader = parsedTcpHeader;
-            _ipHeader = parsedIpHeader;
-            _packet = rawPacket;
-            _length = packetLength;            
-        }
+        private FileLogger _fileLogger;       
 
         private int TcpStart,TcpHeaderLength;
 
@@ -34,44 +22,10 @@ namespace Sentro.Traffic
             _length = packetLength;
             TcpStart = (rawPacket[0] & 15)*4;
             TcpHeaderLength = (rawPacket[TcpStart + 12] >> 4)*4;
-        }
-
-        public IPAddress SourceIp
-        {
-            get { return _ipHeader.SourceAddress; }
-            set { _ipHeader.SourceAddress = value; }
-        }
-
-        public IPAddress DestinationIp
-        {
-            get { return _ipHeader.DestinationAddress; }
-            set { _ipHeader.DestinationAddress = value; }
-        }
-
-        public ushort SourcePort
-        {
-            get { return _tcpHeader.SourcePort; }
-            set { _tcpHeader.SourcePort = value; }
-        }
-        
-        public ushort DestinationPort
-        {
-            get { return _tcpHeader.DestinationPort; }
-            set { _tcpHeader.DestinationPort = value; }
-        }
-
-        public int DataLength => (int) _length - Offset;
-  
-        private int Offset => _tcpHeader.HeaderLength*4 + _ipHeader.HeaderLength*4;
-        public byte[] Data => _packet.Skip(Offset).Take(DataLength).ToArray();             
-
-        public ushort Psh => _tcpHeader.Psh;
+        }                                                    
 
         public byte[] RawPacket => _packet;
-        public uint RawPacketLength => _length;       
-
-        public TCPHeader TcpHeader => _tcpHeader;
-        public IPHeader IpHeader => _ipHeader;
+        public uint RawPacketLength => _length;                       
 
         public override int GetHashCode()
         {
@@ -151,7 +105,7 @@ namespace Sentro.Traffic
         }
 
         public int DataStart => TcpStart + TcpHeaderLength;        
-        public int DataLengthV2 => (int) _length - DataStart;
+        public int DataLength => (int) _length - DataStart;
 
         public bool Fin => (_packet[TcpStart + 13] & 1) == 1;
         public bool Syn => (_packet[TcpStart + 13] & 2) == 2;
@@ -161,35 +115,42 @@ namespace Sentro.Traffic
         public bool FinAck => Fin && Ack;
         
 
-
         private string uri = "";
 
-        public bool IsHttpGet()
-        {            
-            var ascii = Encoding.ASCII.GetString(_packet, DataStart, (int) _length - DataStart);            
-            _fileLogger.Debug(Tag,ascii);
-            var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch, RegexOptions.Multiline);            
-            if (result.Success)
+        public async Task<bool> IsHttpGet()
+        {
+            bool isHttpGet = false;
+            await Task.Run(() =>
             {
-                var host = result.Groups["host"].Value.Trim();
-                var path = result.Groups["path"].Value.Trim();
-                uri = host + path;                          
-                return true;
-            }
-            return false;
+                var ascii = Encoding.ASCII.GetString(_packet, DataStart, (int) _length - DataStart);
+                _fileLogger.Debug(Tag, ascii);
+                var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch, RegexOptions.Multiline);
+                if (result.Success)
+                {
+                    var host = result.Groups["host"].Value.Trim();
+                    var path = result.Groups["path"].Value.Trim();
+                    uri = host + path;
+                    isHttpGet = true;
+                }                
+            });
+            return isHttpGet;
         }
 
-        public bool IsHttpResponse()
+        public async Task<bool> IsHttpResponse()
         {
-            return HttpResponseHeaders != null;
+            bool isHttpResponse = false;
+            await Task.Run(() => {
+                isHttpResponse = HttpResponseHeaders != null;
+            });
+            return isHttpResponse;
         }
 
         private HttpResponseHeaders _httpResponseHeaders;
 
         public HttpResponseHeaders HttpResponseHeaders
-        {
+        {            
             get
-            {
+            {                
                 if (_httpResponseHeaders != null)
                     return _httpResponseHeaders;
 
@@ -208,7 +169,7 @@ namespace Sentro.Traffic
             {
                 var requestUri = uri;
                 if (requestUri.Length == 0)
-                    requestUri = IsHttpGet() ? uri : "";
+                    requestUri = IsHttpGet().Result ? uri : "";
                 return requestUri;
             }
         }
