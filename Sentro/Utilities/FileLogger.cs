@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Sentro.Utilities
 {
@@ -30,28 +31,28 @@ namespace Sentro.Utilities
             _file = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
         }        
                 
-        public async void Debug(string tag, string message)
-        {
+        public void Debug(string tag, string message)
+        {            
             var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
             var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
-            await _file.WriteAsync(bytes, 0, bytes.Length);
-            await _file.FlushAsync();
+            _file.Write(bytes, 0, bytes.Length);
+            _file.Flush();
         }
 
-        public async void Info(string tag, string message)
+        public void Info(string tag, string message)
         {
             var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
             var bytes = Encoding.ASCII.GetBytes($"{time} Info {tag} {message}\n");
-            await _file.WriteAsync(bytes, 0, bytes.Length);
-            await _file.FlushAsync();
+            _file.Write(bytes, 0, bytes.Length);
+            _file.Flush();
         }
 
-        public async void Error(string tag, string message)
+        public void Error(string tag, string message)
         {
             var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
             var bytes = Encoding.ASCII.GetBytes($"{time} Error {tag} {message}\n");
-            await _file.WriteAsync(bytes, 0, bytes.Length);
-            await _file.FlushAsync();
+            _file.Write(bytes, 0, bytes.Length);
+            _file.Flush();
         }
 
         public void Dispose()

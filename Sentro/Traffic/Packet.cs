@@ -117,32 +117,27 @@ namespace Sentro.Traffic
 
         private string uri = "";
 
-        public async Task<bool> IsHttpGet()
+        public bool IsHttpGet()
         {
             bool isHttpGet = false;
-            await Task.Run(() =>
+
+            var ascii = Encoding.ASCII.GetString(_packet, DataStart, (int) _length - DataStart);
+            _fileLogger.Debug(Tag, ascii);
+            var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch, RegexOptions.Multiline);
+            if (result.Success)
             {
-                var ascii = Encoding.ASCII.GetString(_packet, DataStart, (int) _length - DataStart);
-                _fileLogger.Debug(Tag, ascii);
-                var result = Regex.Match(ascii, CommonRegex.HttpGetUriMatch, RegexOptions.Multiline);
-                if (result.Success)
-                {
-                    var host = result.Groups["host"].Value.Trim();
-                    var path = result.Groups["path"].Value.Trim();
-                    uri = host + path;
-                    isHttpGet = true;
-                }                
-            });
+                var host = result.Groups["host"].Value.Trim();
+                var path = result.Groups["path"].Value.Trim();
+                uri = host + path;
+                isHttpGet = true;
+            }
             return isHttpGet;
         }
 
-        public async Task<bool> IsHttpResponse()
+        public bool IsHttpResponse()
         {
-            bool isHttpResponse = false;
-            await Task.Run(() => {
-                isHttpResponse = HttpResponseHeaders != null;
-            });
-            return isHttpResponse;
+
+            return HttpResponseHeaders != null;
         }
 
         private HttpResponseHeaders _httpResponseHeaders;
@@ -169,7 +164,7 @@ namespace Sentro.Traffic
             {
                 var requestUri = uri;
                 if (requestUri.Length == 0)
-                    requestUri = IsHttpGet().Result ? uri : "";
+                    requestUri = IsHttpGet() ? uri : "";
                 return requestUri;
             }
         }

@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text;
 using PcapDotNet.Base;
 using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.IpV4;
+using Sentro.Traffic;
 
 namespace Sentro.Utilities
 {
@@ -78,6 +80,14 @@ namespace Sentro.Utilities
             builder.Remove(builder.Length - 1, 1);
             url = builder.ToString();
             return url;
+        }
+
+        public static void AddOrReplace(this Dictionary<uint, Packet> dictionary,uint key, Packet packet)
+        {
+            if (dictionary.ContainsKey(key))
+                dictionary[key] = packet;
+            else
+                dictionary.Add(key,packet);            
         }
 
     }

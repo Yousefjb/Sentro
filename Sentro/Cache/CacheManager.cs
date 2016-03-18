@@ -22,64 +22,46 @@ namespace Sentro.Cache
             FileLogger = FileLogger.GetInstance();
         }     
 
-        public async static Task<bool> IsCacheable(HttpResponseHeaders headers)
+        public static bool IsCacheable(HttpResponseHeaders headers)
         {
-            bool result = false;
-            await Task.Run(() =>
-            {
-                result = true;                
-            });
-            return result;
+            return true;
         }
 
-        public static async Task<FileStream> OpenFileWriteStream(string hash)
+        public static FileStream OpenFileWriteStream(string hash)
         {
-            FileStream result = null;
-            await Task.Run(() =>
-            {
-                var path = FileHierarchy.MapToFilePath(hash);
-                result = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-            });
-            return result;
+            var path = FileHierarchy.MapToFilePath(hash);
+            return File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         }
 
-        public static async Task Delete(int hash)
+        public static void Delete(int hash)
         {
-            await Task.Run(() =>
-            {
-                File.Delete(FileHierarchy.MapToFilePath(hash.ToString("X8")));
-            });
+            File.Delete(FileHierarchy.MapToFilePath(hash.ToString("X8")));
         }
 
-        public static async Task<CacheResponse> Get(string hash)
+        public static CacheResponse Get(string hash)
         {
             CacheResponse cacheResponse = null;
-            await Task.Run(() =>
+
+            try
             {
-                try
+                if (FileHierarchy.Exist(hash))
                 {
-                    if (!FileHierarchy.Exist(hash)) return;
                     var path = FileHierarchy.MapToFilePath(hash);
                     FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     cacheResponse = new CacheResponse(fs);
-                }
-                catch (Exception e)
-                {
-                    FileLogger.Error(Tag, e.ToString());
-                }
-            });
+                }                
+            }
+            catch (Exception e)
+            {
+                FileLogger.Error(Tag, e.ToString());
+            }
 
             return cacheResponse;
         }
 
-        public static async Task<bool> IsCached(string uriHash)
+        public static bool IsCached(string uriHash)
         {
-            bool result = false;
-            await Task.Run(() =>
-            {
-                result = FileHierarchy.Exist(uriHash);
-            });
-            return result;
-        }       
+            return FileHierarchy.Exist(uriHash);
+        }
     }
 }
