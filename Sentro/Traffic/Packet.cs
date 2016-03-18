@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Sentro.Utilities;
 
 namespace Sentro.Traffic
@@ -32,56 +31,38 @@ namespace Sentro.Traffic
             return ((SrcIp.GetHashCode() ^ SrcPort.GetHashCode()) as object).GetHashCode() ^
                    ((DestIp.GetHashCode() ^ DestPort.GetHashCode()) as object).GetHashCode();
         }
-        
-        public uint DestIp => BitConverter.ToUInt32(new[]
-        {
-            _packet[19],
-            _packet[18],
-            _packet[17],
-            _packet[16]
-        }, 0);
 
-        public ushort SrcPort => BitConverter.ToUInt16(new[]
-        {
-            _packet[TcpStart + 1],
-            _packet[TcpStart + 0]
-        }, 0);
+        public uint DestIp =>
+            (uint)
+                (((((((0 | _packet[16]) << 8) | _packet[17]) << 8) | _packet[18]) <<
+                  8) | _packet[19]);
 
-        public uint SrcIp => BitConverter.ToUInt32(new[]
-        {
-            _packet[15],
-            _packet[14],
-            _packet[13],
-            _packet[12]
-        }, 0);
+        public ushort SrcPort =>
+            (ushort)
+                (((0 | _packet[TcpStart + 0]) << 8) | _packet[TcpStart + 1]);
 
-        public ushort DestPort => BitConverter.ToUInt16(new[]
-        {
-            _packet[TcpStart + 3],
-            _packet[TcpStart + 2]
-        }, 0);
+        public uint SrcIp =>
+            (uint)
+                (((((((0 | _packet[12]) << 8) | _packet[13]) << 8) | _packet[14]) <<
+                  8) | _packet[15]);
 
-        public uint AckNumber => BitConverter.ToUInt32(new[]
-        {
-            _packet[TcpStart + 11],
-            _packet[TcpStart + 10],
-            _packet[TcpStart + 9],
-            _packet[TcpStart + 8]
-        }, 0);
+        public ushort DestPort =>
+            (ushort)
+                (((0 | _packet[TcpStart + 2]) << 8) | _packet[TcpStart + 3]);
+      
+        public uint AckNumber =>
+            (uint)
+                (((((((0 | _packet[TcpStart + 8]) << 8) | _packet[TcpStart + 9]) << 8) | _packet[TcpStart + 10]) <<
+                  8) | _packet[TcpStart + 11]);
 
-        public uint SeqNumber => BitConverter.ToUInt32(new[]
-        {
-            _packet[TcpStart + 7],
-            _packet[TcpStart + 6],
-            _packet[TcpStart + 5],
-            _packet[TcpStart + 4]
-        }, 0);
+        public uint SeqNumber =>
+            (uint)
+                (((((((0 | _packet[TcpStart + 4]) << 8) | _packet[TcpStart + 5]) << 8) | _packet[TcpStart + 6]) <<
+                  8) | _packet[TcpStart + 7]);
 
-        public ushort WindowSize => BitConverter.ToUInt16(new[]
-        {
-            _packet[TcpStart + 15],
-            _packet[TcpStart + 14]
-        }, 0);
+        public ushort WindowSize =>
+            (ushort)
+                (((0 | _packet[TcpStart + 14]) << 8) | _packet[TcpStart + 15]);
 
         public byte WindowScale
         {
@@ -98,7 +79,7 @@ namespace Sentro.Traffic
                     else if (_packet[i] == 4)
                         i += 2;
                     else if (_packet[i] == 3)
-                        return _packet[i + 2];
+                        return _packet[i + 2];                    
                 }
                 return 0;
             }
@@ -107,10 +88,42 @@ namespace Sentro.Traffic
         public int DataStart => TcpStart + TcpHeaderLength;        
         public int DataLength => (int) _length - DataStart;
 
-        public bool Fin => (_packet[TcpStart + 13] & 1) == 1;
-        public bool Syn => (_packet[TcpStart + 13] & 2) == 2;
-        public bool Rst => (_packet[TcpStart + 13] & 4) == 4;
-        public bool Ack => (_packet[TcpStart + 13] & 16) == 16;
+        public bool Fin
+        {
+            get
+            {
+                var fin = _packet[TcpStart + 13] | 1;
+                return (fin == 1 || fin == 9);
+            }
+        }
+
+        public bool Syn
+        {
+            get
+            {
+                var syn = _packet[TcpStart + 13] | 2;
+                return (syn == 2 || syn == 10);
+            }
+        }    
+
+        public bool Rst
+        {
+            get
+            {
+                var rst = _packet[TcpStart + 13] | 4;
+                return (rst == 4 || rst == 12);
+            }
+        }
+
+        public bool Ack
+        {
+            get
+            {
+                var ack = _packet[TcpStart + 13] | 16;
+                return (ack == 16 || ack == 24);
+            }
+        }
+            
         public bool SynAck => Syn && Ack;
         public bool FinAck => Fin && Ack;
         

@@ -56,7 +56,7 @@ namespace Sentro.Traffic
                 return;
             }
 
-            var buffer = new byte[1536];
+            var buffer = new byte[2048];
             var address = new Address();
 
             while (_running)
@@ -73,10 +73,10 @@ namespace Sentro.Traffic
 
                 var hash = packet.GetHashCode();
                 if (!KvStore.Connections.ContainsKey(hash))
-                    KvStore.Connections.TryAdd(hash, new Connection(diversion, address) {HashCode = hash});
+                    KvStore.Connections.TryAdd(hash, new Connection(diversion) {HashCode = hash});
 
                 //Controlling Logic maybe              
-                KvStore.Connections[hash].Add(packet);
+                KvStore.Connections[hash].Add(packet,address);
 
                 //Monitoring Logic maybe
             }

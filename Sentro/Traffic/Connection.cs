@@ -19,8 +19,7 @@ namespace Sentro.Traffic
     {
         public string Tag = "Connection";
 
-        private State CurrentState;
-        private readonly Address address;
+        private State CurrentState;        
         private readonly Diversion diversion;
         private readonly FileLogger fileLogger;        
         private readonly System.Timers.Timer timeoutTimer;
@@ -39,18 +38,19 @@ namespace Sentro.Traffic
                 Tag = value.ToString();
             }
         }
-
-        public Connection(Diversion diversion,Address address)
+        
+        private SemaphoreSlim addLock;
+        public Connection(Diversion diversion)
         {
             this.diversion = diversion;
-            CurrentState = State.Closed;
-            this.address = address;
+            CurrentState = State.Closed;            
             timeoutTimer = new System.Timers.Timer();
             timeoutTimer.Elapsed += OnTimeout;
             timeoutTimer.Interval = 30*1000;
             timeoutTimer.Enabled = true;
             fileLogger = FileLogger.GetInstance();      
-            fileLogger.Debug(Tag,"new connection");            
+            fileLogger.Debug(Tag,"new connection"); 
+            addLock = new SemaphoreSlim(1);                      
         }
 
         private void OnTimeout(object source,ElapsedEventArgs e)
@@ -62,18 +62,22 @@ namespace Sentro.Traffic
 
         public void ClearResources()
         {
-            if (cachingFileStream != null)
+            try
             {
-                cachingFileStream.Flush();
-                cachingFileStream.Close();
-                cachingFileStream.Dispose();
+                if (cachingFileStream != null)
+                {
+                    cachingFileStream.Flush();
+                    cachingFileStream.Close();
+                    cachingFileStream.Dispose();
+                }
+                Connection c;
+                KvStore.Connections.TryRemove(HashCode, out c);
+            }
+            catch (Exception e)
+            {
+                fileLogger.Error(Tag,e.ToString());
             }
 
-            queuedPackets = null;
-            if (CurrentState.HasFlag(State.Caching))
-                CacheManager.Delete(HashCode);
-            Connection c;
-            KvStore.Connections.TryRemove(HashCode, out c);
             fileLogger.Debug(Tag, "cleared resources");
         }
 
@@ -84,338 +88,208 @@ namespace Sentro.Traffic
             fileLogger.Debug(Tag, $"{rawPacket.SrcIp}:{rawPacket.SrcPort}->{rawPacket.DestIp}:{rawPacket.DestPort}");
         }
 
-        public void Add(Packet rawPacket)
-        {
-            resetTimer(rawPacket);
-
-            if (CurrentState.HasFlag(State.Established))
-                Established(rawPacket);
-
-            else if (CurrentState.HasFlag(State.Caching))
-                Caching(rawPacket);
-
-            else if (CurrentState.HasFlag(State.SendingCache))
-                SendingCache(rawPacket);
-
-            else if (CurrentState.HasFlag(State.Establishing))
-                Establishing(rawPacket);
-
-            else if (CurrentState.HasFlag(State.Closing))
-                Closing(rawPacket);
-
-            else if (CurrentState.HasFlag(State.Closed))
-                Closed(rawPacket);
-
-            else if (CurrentState.HasFlag(State.SentCache))
-                SentCache(rawPacket);
-
-            else if (CurrentState.HasFlag(State.OutOfControl))
-                SendAsync(rawPacket);
-        }
-
         private byte _windowScale;
 
-        private void Closed(Packet rawPacket)
+        public void Add(Packet rawPacket, Address address)
         {
+            addLock.Wait();
+            Task.Factory.StartNew(() =>
+            {
 
-            if (rawPacket.Syn)
-            {
-                CurrentState = State.Establishing;
-                _windowScale = rawPacket.WindowScale;
-                fileLogger.Debug(Tag, "closed:syn -> establishing");
-            }
-            else if (rawPacket.SynAck || rawPacket.Ack)
-            {
-                CurrentState = State.Established;
-                fileLogger.Debug(Tag, "closed:ack|synack -> established");
-            }
-            else if (rawPacket.Fin || rawPacket.FinAck)
-            {
-                fileLogger.Debug(Tag, "closed:fin|finack -> closed");
-            }
-            SendAsync(rawPacket);
-        }
+                if (rawPacket.SynAck)
+                    _windowScale = rawPacket.WindowScale;
 
-        private void Establishing(Packet rawPacket)
-        {
-            if (rawPacket.Ack)
-            {
-                CurrentState = State.Established;
-                fileLogger.Debug(Tag, "establishing:ack -> established");
-            }
-            else if (rawPacket.Fin)
-            {
-                CurrentState = State.Closing;
-                fileLogger.Debug(Tag, "establishing:fin -> closing");
-            }
-            else if (rawPacket.FinAck)
-            {
-                CurrentState = State.Closed;
-                fileLogger.Debug(Tag, "establishing:finack -> closed");
-            }
-            SendAsync(rawPacket);
-        }
+                //resetTimer(rawPacket);
 
-        private void Established(Packet rawPacket)
-        {            
-            var destPort = rawPacket.DestPort;
-
-            if (rawPacket.Fin)
-            {
-                CurrentState = State.Closing;
-                fileLogger.Debug(Tag, "established:fin -> closing");
-            }
-            else if (rawPacket.Rst)
-            {
-                CurrentState = State.Closed;
-                fileLogger.Debug(Tag, "established:rst -> closed");
-            }
-            else if (rawPacket.Syn)
-            {
-                CurrentState = State.Establishing;
-
-                fileLogger.Debug(Tag, "established:syn -> establishing");
-            }
-            if (destPort == 80 || destPort == 443)
-            {
-                if (rawPacket.DataLength == 0)
+                switch (CurrentState)
                 {
-                    fileLogger.Debug(Tag, "established: empty packet");
-                    SendAsync(rawPacket);
+                    case State.Closed:
+                        Closed(rawPacket, address);
+                        break;
+                    case State.Caching:
+                        Caching(rawPacket, address);
+                        break;
+                    case State.Connected:
+                        Connected(rawPacket, address);
+                        break;
+                    case State.SendingCache:
+                        SendingCache(rawPacket, address);
+                        break;
+                    case State.WaitResponse:
+                        WaitResponse(rawPacket, address);
+                        break;
+                    case State.Transferring:
+                        Transferring(rawPacket, address);
+                        break;
                 }
-                else if (rawPacket.IsHttpGet())
+            }, TaskCreationOptions.LongRunning).ContinueWith(task => addLock.Release());
+        }
+
+        private void Closed(Packet rawPacket,Address address)
+        {
+            CurrentState = State.Closed;
+            fileLogger.Debug(Tag,"closed");
+            if (rawPacket.Ack)
+            {                
+                if (IsOut(rawPacket,address))
+                    Connected(rawPacket,address);
+                else Transferring(rawPacket,address);
+            }
+            else
+                SendAsync(rawPacket,address);
+        }
+
+        private void Connected(Packet rawPacket,Address address)
+        {
+            CurrentState = State.Connected;
+            fileLogger.Debug(Tag, "connected");            
+            if (rawPacket.Fin || rawPacket.FinAck || rawPacket.Rst)
+                Closed(rawPacket,address);
+            else if (IsOut(rawPacket,address) && rawPacket.Ack && (rawPacket.DataLength > 0))
+            {
+                if (!rawPacket.IsHttpGet())
+                    Transferring(rawPacket,address);
+                else
                 {
-                    fileLogger.Debug(Tag, $"established:uri -> {rawPacket.Uri}");
-                    fileLogger.Debug(Tag, $"established:lastGet -> {hashOfLastHttpGet}");
-                    hashOfLastHttpGet = rawPacket.Uri.NormalizeUri().MurmurHash();
-                    fileLogger.Debug(Tag, $"established:newlastGet -> {hashOfLastHttpGet}");
+                    hashOfLastHttpGet = rawPacket.Uri.Normalize().MurmurHash();
                     if (CacheManager.IsCached(hashOfLastHttpGet))
-                    {
-                        fileLogger.Debug(Tag, "established:isCached -> true");
-                        //if (CacheManager.ShouldValidiate(hashOfLastHttpGet))
-                        //    Validate();
-                        var response = CacheManager.Get(hashOfLastHttpGet);
-                        CurrentState = State.SendingCache;
-                        SendCacheResponse(response, rawPacket);
-                    }
+                        SendingCache(rawPacket, address);
                     else
                     {
-                        fileLogger.Debug(Tag, "established:isCached -> false");
-                        SendAsync(rawPacket);
+                        CurrentState = State.WaitResponse;
+                        SendAsync(rawPacket, address); //WaitResponse(rawPacket,address);
                     }
-                }
-                else
-                {
-                    fileLogger.Debug(Tag, "established:httpGet -> NO");
-                    SendAsync(rawPacket);
-                    hashOfLastHttpGet = "";
                 }
             }
             else
-            {
-
-                if (CurrentState.HasFlag(State.Transmitting))
-                {
-                    fileLogger.Debug(Tag, "established:transmitting -> yes");
-                    SendAsync(rawPacket);
-                }
-                else if (rawPacket.DataLength == 0)
-                {
-                    fileLogger.Debug(Tag, "established:income -> empty");
-                    SendAsync(rawPacket);
-                }
-                else if (rawPacket.IsHttpResponse())
-                {
-                    if (hashOfLastHttpGet.Length == 0)
-                    {
-                        fileLogger.Debug(Tag, "established:response -> post or not get");
-                    }
-                    else if (CacheManager.IsCacheable(rawPacket.HttpResponseHeaders))
-                    {
-                        fileLogger.Debug(Tag, "established:httpResp -> cachable");
-                        CurrentState = State.Caching;
-                        fileLogger.Debug(Tag, "established:isCacheable -> Caching");
-                        Caching(rawPacket);
-                        fileLogger.Debug(Tag, "established:isHttpResponse -> returned from caching call");
-                    }
-                    else
-                    {
-                        fileLogger.Debug(Tag, "established:isHttpResponse -> not cachable");
-                        CurrentState = State.Established | State.Transmitting;
-                        fileLogger.Debug(Tag, "established:not cachable -> established | transmitting");
-                        SendAsync(rawPacket);
-                    }
-                }
-                else
-                {
-                    fileLogger.Debug(Tag, "established:ishttpResp -> No");
-                }
-            }
+                SendAsync(rawPacket,address);
         }
 
-        private void Closing(Packet rawPacket)
+        private void Transferring(Packet rawPacket,Address address)
         {
-            SpinWait.SpinUntil(() => WritingPacket == false);
-            if (rawPacket.Ack)
-            {
-                CurrentState = State.Closed;
-                fileLogger.Debug(Tag, "closing:ack -> closed");
-            }
-            else if (rawPacket.Syn)
-            {
-                CurrentState = State.Establishing;
-                fileLogger.Debug(Tag, "closing:syn -> establishing");
-            }
-            else if (rawPacket.SynAck)
-            {
-                CurrentState = State.Established;
-                fileLogger.Debug(Tag, "closing:synack -> established");
-            }
-            else
-            {
-                CurrentState = State.OutOfControl;
-                fileLogger.Debug(Tag, "closing:? -> outofcontrol");
-            }
-            SendAsync(rawPacket);
+            CurrentState = State.Transferring;
+            fileLogger.Debug(Tag, "transferring");
+            if (rawPacket.Fin || rawPacket.FinAck || rawPacket.Rst)
+                Closed(rawPacket,address);
+            else SendAsync(rawPacket,address);
         }
 
-        //Let this be the last one
+        private void WaitResponse(Packet rawPacket,Address address)
+        {
+            CurrentState = State.WaitResponse;
+            fileLogger.Debug(Tag, "waitresponse");            
+            if (rawPacket.Fin || rawPacket.FinAck || rawPacket.Rst)
+                Closed(rawPacket,address);
+            else if (IsOut(rawPacket,address) && rawPacket.Ack && (rawPacket.DataLength > 0))
+            {
+                if (rawPacket.IsHttpResponse() && CacheManager.IsCacheable(rawPacket.HttpResponseHeaders))
+                    Caching(rawPacket,address);
+                else
+                    Transferring(rawPacket,address);
+            }
+            else
+                SendAsync(rawPacket,address);
+        }
+
         private FileStream cachingFileStream;
-        private Dictionary<uint, Packet> queuedPackets;        
+        private Dictionary<uint, Packet> queuedPackets;
         private int responseContentLength;
         private uint expectedSequence;
         private int cachedContentLength;
-        private void Caching(Packet rawPacket)
-        {            
-            /*
-            this state start with the first packet sent from server 
-            which contains the http response headers as well            
-            */
-            SendAsync(rawPacket);
-            if (cachingFileStream == null || queuedPackets == null)
+        private SemaphoreSlim cachingLock;
+        private void Caching(Packet rawPacket,Address address)
+        {
+            CurrentState = State.Caching;
+            fileLogger.Debug(Tag, "caching");
+            if (cachingFileStream == null)
             {
                 cachingFileStream = CacheManager.OpenFileWriteStream(hashOfLastHttpGet);
                 queuedPackets = new Dictionary<uint, Packet>();
-                
-                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;
-                fileLogger.Debug(Tag, $"caching:#1 -> content length {responseContentLength}");
+                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;                
                 expectedSequence = rawPacket.SeqNumber;
-                fileLogger.Debug(Tag, $"caching:expectedSeq -> {expectedSequence}");
-            }            
-                
-
-            var destPort = rawPacket.DestPort;
-
-            //ack from user could be for multiple packets
-            if (destPort == 80 || destPort == 443)
+                cachingLock = new SemaphoreSlim(1);
+                fileLogger.Debug(Tag,"init cache");
+            }
+            if (!rawPacket.Ack)
             {
-                if (rawPacket.Fin)
+                cachingLock.Wait();
+                Task.Factory.StartNew(() =>
                 {
-                    CurrentState = State.Closing;
-                    fileLogger.Debug(Tag, "caching:fin -> closing");
-                }
-                else if (rawPacket.FinAck || rawPacket.Rst)
-                {
-                    CurrentState = State.Closed;
-                    fileLogger.Debug(Tag, "caching:finack | rst -> closed");
-                }
+                    if (cachedContentLength != responseContentLength)
+                    {
+                        while (queuedPackets.ContainsKey(expectedSequence))
+                        {
+                            rawPacket = queuedPackets[expectedSequence];
+                            cachePacket(rawPacket);
+                        }
+                    }
+                    cachingFileStream.Flush();
+                    cachingFileStream.Close();
+                    cachingFileStream.Dispose();
+                    cachingFileStream = null;
+                    queuedPackets.Clear();
+                    queuedPackets = null;
+                    if (cachedContentLength < responseContentLength)
+                    {
+                        CacheManager.Delete(hashOfLastHttpGet);
+                        fileLogger.Debug(Tag, "deleted cache");
+                    }
+                    hashOfLastHttpGet = "";
+                    responseContentLength = cachedContentLength = 0;
+                    expectedSequence = 0;
+
+                }, TaskCreationOptions.LongRunning).ContinueWith(task => cachingLock.Release());
+
+                Closed(rawPacket, address);
             }
             else
             {
-                if (!queuedPackets.ContainsKey(rawPacket.SeqNumber))
+                SendAsync(rawPacket, address);
+                cachingLock.Wait();
+                Task.Factory.StartNew(() =>
                 {
-                    fileLogger.Debug(Tag, $"caching:seq not in dict -> {rawPacket.SeqNumber}");
-                    queuedPackets.Add(rawPacket.SeqNumber, rawPacket);
-                    TryWriteOrderedPackets();
-                }
-                else
-                {
-                    fileLogger.Debug(Tag, $"caching:seq in dict -> {rawPacket.SeqNumber}");
-                }
-            }         
+                    if (!IsOut(rawPacket, address))
+                        return;
+                    var packetSeq = rawPacket.SeqNumber;
+                    if (packetSeq == expectedSequence || queuedPackets.ContainsKey(expectedSequence))
+                    {
+                        if (packetSeq != expectedSequence)
+                            rawPacket = queuedPackets[expectedSequence];
+                        cachePacket(rawPacket);
+                    }
+                    else
+                        queuedPackets.Add(packetSeq, rawPacket);
+
+                }, TaskCreationOptions.LongRunning).ContinueWith(task => cachingLock.Release());
+            }
         }
 
-        private bool WritingPacket = false;
-
-        private void TryWriteOrderedPackets()
-        {            
-            WritingPacket = true;
-            while (queuedPackets.ContainsKey(expectedSequence))
-            {
-                Packet packet = queuedPackets[expectedSequence];
-                queuedPackets.Remove(expectedSequence);                
-                var packetLength = packet.DataLength;
-                cachingFileStream.Write(packet.RawPacket, packet.DataStart, packetLength);
-                cachingFileStream.Flush();
-                expectedSequence += (uint) packetLength;
-                cachedContentLength += packetLength;
-            }
-
-            fileLogger.Debug(Tag, $"orderpacket: missing -> {expectedSequence}");
-            if (cachedContentLength == responseContentLength)
-            {
-                CurrentState = State.Established;
-                fileLogger.Debug(Tag, "orderpacket:fullcache -> established");
-                cachingFileStream.Close();
-                cachingFileStream.Dispose();
-            }
-            else
-            {
-                fileLogger.Debug(Tag, "orderpacket:fullcache -> NO");
-            }
-            WritingPacket = false;
-        }
-
-        private void SendingCache(Packet rawPacket)
+        private void cachePacket(Packet rawPacket)
         {
-            var destPort = rawPacket.DestPort;
-            if (destPort == 80 || destPort == 443)
+            var packetLength = rawPacket.DataLength;
+            fileLogger.Debug(Tag,"writing " + packetLength);
+            cachingFileStream.Write(rawPacket.RawPacket, rawPacket.DataStart, packetLength);
+            cachingFileStream.Flush();
+            expectedSequence += (uint)packetLength;
+            cachedContentLength += packetLength;
+        }
+                            
+        private void SendingCache(Packet rawPacket,Address address)
+        {
+            CurrentState = State.SendingCache;
+            fileLogger.Debug(Tag, "sendingcache");            
+            if (IsOut(rawPacket,null))
             {
                 pauseSendingCache = (rawPacket.WindowSize*(1 << _windowScale)) < 3000;
                 fileLogger.Debug(Tag,
                     $"sendingCache: paused : windowSize {rawPacket.WindowSize}-> {pauseSendingCache}");
                 if (rawPacket.Fin || rawPacket.Rst)
-                {
-                    CurrentState = State.Closing;
+                {                    
                     fileLogger.Debug(Tag, "sendingCache:fin | rst -> closing");
                 }
             }
-        }
-
-        private void SentCache(Packet rawPacket)
-        {
-
-            var destPort = rawPacket.DestPort;
-            if (destPort == 80 || destPort == 443)
-            {
-                if (rawPacket.Fin || rawPacket.Rst)
-                {
-                    CurrentState = State.Closed;
-                    fileLogger.Debug(Tag, "sentcache:fin | rst -> closed");
-                }
-                else if (rawPacket.Syn || rawPacket.SynAck)
-                {
-                    CurrentState = State.Establishing;
-                    fileLogger.Debug(Tag, "sentcache:syn | synack -> establishing");
-                }
-                else if (rawPacket.DataLength > 0)
-                {
-                    fileLogger.Debug(Tag, $"sentcache:not empty -> {rawPacket.DataLength}");
-                    if (rawPacket.IsHttpGet())
-                    {
-                        CurrentState = State.Established;
-                        fileLogger.Debug(Tag, "sentcache:httpget -> call established");
-                        Established(rawPacket);
-                        fileLogger.Debug(Tag, "sentcache:httpget -> returned from call established");
-                    }
-                }
-                else
-                {
-                    fileLogger.Debug(Tag, "sentcache:datalength -> 0");
-                }
-            }
-        }
-
+        }        
+               
         private void SendCacheResponse(CacheResponse response, Packet requestPacket)
         {
             var random = (ushort) DateTime.Now.Millisecond;
@@ -425,7 +299,7 @@ namespace Sentro.Traffic
 
             foreach (var packet in response.NetworkPackets)
             {
-                if (CurrentState.HasFlag(State.Closed) || CurrentState.HasFlag(State.Closing))
+                if (CurrentState.HasFlag(State.Closed))
                 {
                     fileLogger.Debug(Tag, "sendcacheasync:closed | closing -> break");
                     break;
@@ -436,11 +310,10 @@ namespace Sentro.Traffic
                 SpinWait.SpinUntil(() => pauseSendingCache == false);
                 fileLogger.Debug(Tag, "sendcacheasync:spin -> done");
                 diversion.CalculateChecksums(packet.RawPacket, packet.RawPacketLength, 0);
-                SendAsync(packet);
+                SendAsync(packet,null);
                 seq += packet.RawPacketLength - 40;                
             }
-            response.Close();
-            CurrentState = State.SentCache;
+            response.Close();            
             fileLogger.Debug(Tag, "sendcacheasync:resp close -> sentcache");
         }
 
@@ -557,28 +430,26 @@ namespace Sentro.Traffic
             //END OF 40 Bytes headers 
         }
 
-        private void SendAsync(Packet rawPacket)
+        private void SendAsync(Packet rawPacket,Address address)
         {
             diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
         }
 
-        private void Validate()
+        private bool IsOut(Packet rawPacket, Address address)
         {
-            throw new NotImplementedException();
+            var destPort = rawPacket.DestPort;
+            return (address.Direction == DivertDirection.Outbound && (destPort == 80 || destPort == 443));
         }
 
         [Flags]
         private enum State
         {
-            Established    = 1 << 0,
-            Establishing   = 1 << 1, 
-            Closed         = 1 << 2,
-            Closing        = 1 << 3,             
-            Caching        = 1 << 4,
-            SentCache      = 1 << 5,
-            SendingCache   = 1 << 6,
-            OutOfControl   = 1 << 7,
-            Transmitting   = 1 << 8
+            Closed          = 1 << 0,
+            Connected       = 1 << 1,
+            Transferring    = 1 << 2,
+            Caching         = 1 << 3,
+            SendingCache    = 1 << 4,
+            WaitResponse    = 1 << 5
         }
     }
 }

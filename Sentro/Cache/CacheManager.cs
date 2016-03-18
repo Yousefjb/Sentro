@@ -33,9 +33,9 @@ namespace Sentro.Cache
             return File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         }
 
-        public static void Delete(int hash)
+        public static void Delete(string hash)
         {
-            File.Delete(FileHierarchy.MapToFilePath(hash.ToString("X8")));
+            File.Delete(FileHierarchy.MapToFilePath(hash));
         }
 
         public static CacheResponse Get(string hash)
