@@ -1,11 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 using Divert.Net;
-using Sentro.Cache;
 using Sentro.Utilities;
 
 namespace Sentro.Traffic
@@ -40,9 +36,9 @@ namespace Sentro.Traffic
 
             try
             {
-                diversion = Diversion.Open(filter, layer, 100, 0);
-                diversion.SetParam(DivertParam.QueueLength, 8192);
-                diversion.SetParam(DivertParam.QueueTime, 2048);
+                diversion = Diversion.Open(filter, layer,100, 0);
+                //diversion.SetParam(DivertParam.QueueLength, 8192);
+                //diversion.SetParam(DivertParam.QueueTime, 2048);
             }
             catch (Exception e)
             {
@@ -61,8 +57,7 @@ namespace Sentro.Traffic
 
             while (_running)
             {
-                uint receiveLength = 0;
-
+                uint receiveLength = 0;                
                 if (!diversion.Receive(buffer, address, ref receiveLength))
                 {
                     _fileLogger.Error(Tag, $"Failed to receive packet with error {Marshal.GetLastWin32Error()}");
@@ -76,8 +71,7 @@ namespace Sentro.Traffic
                     KvStore.Connections.TryAdd(hash, new Connection(diversion) {HashCode = hash});
 
                 //Controlling Logic maybe              
-                KvStore.Connections[hash].Add(packet,address);
-
+                KvStore.Connections[hash].Add(packet,address);                
                 //Monitoring Logic maybe
             }
         }
@@ -111,6 +105,7 @@ namespace Sentro.Traffic
         {
             Divert(DivertLayer.NetworkForward);
         }
+
         private void CallDivertNetwork()
         {
             Divert(DivertLayer.Network);

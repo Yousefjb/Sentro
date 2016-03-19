@@ -38,7 +38,7 @@ namespace Sentro.Traffic
             }
         }
         
-        private SemaphoreSlim addLock;
+        
         public Connection(Diversion diversion)
         {
             this.diversion = diversion;
@@ -47,9 +47,8 @@ namespace Sentro.Traffic
             timeoutTimer.Elapsed += OnTimeout;
             timeoutTimer.Interval = 30*1000;
             timeoutTimer.Enabled = true;
-            fileLogger = FileLogger.GetInstance();      
-            fileLogger.Debug(Tag,"new connection"); 
-            addLock = new SemaphoreSlim(1);                      
+            fileLogger = FileLogger.GetInstance();
+            fileLogger.Debug(Tag, "new connection");
         }
 
         private void OnTimeout(object source,ElapsedEventArgs e)
@@ -96,10 +95,7 @@ namespace Sentro.Traffic
 
         public void Add(Packet rawPacket, Address address)
         {
-            fileLogger.Debug(Tag,$"add before waitlock: seq {rawPacket.SeqNumber}");
-            addLock.Wait();
-            fileLogger.Debug(Tag, $"add after afterwaitlock: seq {rawPacket.SeqNumber}");
-            Task.Factory.StartNew(() =>
+            Task.Run(() =>
             {
                 fileLogger.Debug(Tag, "packet in");
                 if (rawPacket.SynAck)
@@ -128,10 +124,6 @@ namespace Sentro.Traffic
                         Transferring(rawPacket, address);
                         break;
                 }
-            }, TaskCreationOptions.LongRunning|TaskCreationOptions.PreferFairness).ContinueWith(task =>
-            {
-                addLock.Release();
-                fileLogger.Debug(Tag, "packet out");
             });
         }
 
@@ -507,7 +499,8 @@ namespace Sentro.Traffic
 
         private void SendAsync(Packet rawPacket,Address address)
         {
-            diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
+            //fileLogger.Debug(Tag,"send async");
+            //diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
         }
 
         private bool IsOut(Packet rawPacket, Address address)

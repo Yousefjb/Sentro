@@ -3,7 +3,7 @@
     "Frequency": "30000"
   },
   
-  "SettingsReloadRate": "60000",
+  "SettingsReloadRate": "6000000",
 
   "User": {
     "InterfaceIP": "192.168.1.11",

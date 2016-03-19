@@ -233,6 +233,7 @@ xcopy /Y "$(ProjectDir)src\deps\$(PlatformTarget)\*.sys" "$(OutDir)"</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies />
       <AdditionalLibraryDirectories>$(ProjectDir)src\deps\$(PlatformTarget)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <Profile>true</Profile>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y "$(ProjectDir)src\deps\$(PlatformTarget)\*.dll" "$(OutDir)"
@@ -307,6 +308,7 @@ xcopy /Y "$(ProjectDir)src\deps\$(PlatformTarget)\*.sys" "$(OutDir)"</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies />
       <AdditionalLibraryDirectories>$(ProjectDir)src\deps\$(PlatformTarget)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <Profile>true</Profile>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y "$(ProjectDir)src\deps\$(PlatformTarget)\*.dll" "$(OutDir)"
