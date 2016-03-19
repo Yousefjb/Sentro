@@ -2,7 +2,6 @@
 using System.IO;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Sentro.Utilities
 {
@@ -15,7 +14,7 @@ namespace Sentro.Utilities
         private readonly FileStream _file;
         private static FileLogger _fileLogger;
         private static uint index;
-        private object writelock;   
+        private SemaphoreSlim writelock;   
 
         public static FileLogger GetInstance()
         {            
@@ -30,40 +29,37 @@ namespace Sentro.Utilities
             directoryInfo?.Create();
             if (directoryInfo != null) directoryInfo.Attributes &= ~FileAttributes.ReadOnly;
             _file = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
-            writelock = new object();
-        }        
-                
+            writelock = new SemaphoreSlim(1);
+        }
+
         public void Debug(string tag, string message)
         {
-            lock (writelock)
-            {
-                var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-                var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
-                _file.Write(bytes, 0, bytes.Length);
-                _file.Flush();
-            }
+            writelock.Wait();
+            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
+            _file.Write(bytes, 0, bytes.Length);
+            _file.Flush();
+            writelock.Release();
         }
 
         public void Info(string tag, string message)
         {
-            lock (writelock)
-            {
-                var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-                var bytes = Encoding.ASCII.GetBytes($"{time} Info {tag} {message}\n");
-                _file.Write(bytes, 0, bytes.Length);
-                _file.Flush();
-            }
+            writelock.Wait();
+            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            var bytes = Encoding.ASCII.GetBytes($"{time} Info {tag} {message}\n");
+            _file.Write(bytes, 0, bytes.Length);
+            _file.Flush();
+            writelock.Release();
         }
 
         public void Error(string tag, string message)
         {
-            lock (writelock)
-            {
-                var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-                var bytes = Encoding.ASCII.GetBytes($"{time} Error {tag} {message}\n");
-                _file.Write(bytes, 0, bytes.Length);
-                _file.Flush();
-            }
+            writelock.Wait();
+            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            var bytes = Encoding.ASCII.GetBytes($"{time} Error {tag} {message}\n");
+            _file.Write(bytes, 0, bytes.Length);
+            _file.Flush();
+            writelock.Release();
         }
 
         public void Dispose()

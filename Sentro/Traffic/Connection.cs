@@ -66,9 +66,13 @@ namespace Sentro.Traffic
                 if (cachingFileStream != null)
                 {
                     fileLogger.Debug(Tag,"caching file stream not null");
-                    cachingFileStream.Flush();
-                    cachingFileStream.Close();
-                    cachingFileStream.Dispose();
+                    if (cachingFileStream != Stream.Null)
+                    {
+                        cachingFileStream.Flush();
+                        cachingFileStream.Close();
+                        cachingFileStream.Dispose();
+                        cachingFileStream = null;
+                    }
                 }
                 Connection c;
                 KvStore.Connections.TryRemove(HashCode, out c);
@@ -92,7 +96,9 @@ namespace Sentro.Traffic
 
         public void Add(Packet rawPacket, Address address)
         {
+            fileLogger.Debug(Tag,$"add before waitlock: seq {rawPacket.SeqNumber}");
             addLock.Wait();
+            fileLogger.Debug(Tag, $"add after afterwaitlock: seq {rawPacket.SeqNumber}");
             Task.Factory.StartNew(() =>
             {
                 fileLogger.Debug(Tag, "packet in");
@@ -122,7 +128,7 @@ namespace Sentro.Traffic
                         Transferring(rawPacket, address);
                         break;
                 }
-            }, TaskCreationOptions.LongRunning).ContinueWith(task =>
+            }, TaskCreationOptions.LongRunning|TaskCreationOptions.PreferFairness).ContinueWith(task =>
             {
                 addLock.Release();
                 fileLogger.Debug(Tag, "packet out");
@@ -238,24 +244,38 @@ namespace Sentro.Traffic
         private uint expectedSequence;
         private int cachedContentLength;
         private SemaphoreSlim cachingLock;
-        private void Caching(Packet rawPacket,Address address)
+        private Queue<Packet> blockQueue;
+
+        private void Caching(Packet rawPacket, Address address)
         {
-            CurrentState = State.Caching;            
+            CurrentState = State.Caching;
+            if (IsOut(rawPacket, address))
+            {
+                fileLogger.Debug(Tag, "caching: ack out -> return");
+                SendAsync(rawPacket, address);
+                return;
+            }
             if (cachingFileStream == null)
             {
                 cachingFileStream = CacheManager.OpenFileWriteStream(hashOfLastHttpGet);
                 queuedPackets = new Dictionary<uint, Packet>();
-                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;                
-                expectedSequence = rawPacket.SeqNumber;
+                blockQueue = new Queue<Packet>();
+                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;
+                expectedSequence = rawPacket.SeqNumber - (uint) rawPacket.DataLength;
+                fileLogger.Debug(Tag, $"caching: firstpacket seq and expected set to {expectedSequence}");
                 cachingLock = new SemaphoreSlim(1);
-                fileLogger.Debug(Tag,"init cache");
+                fileLogger.Debug(Tag, "init cache");
+                fileLogger.Debug(Tag, $"response contnetlength : {responseContentLength}");
             }
-            if (!rawPacket.Ack)
+            blockQueue.Enqueue(rawPacket);
+            SendAsync(rawPacket, address);
+            cachingLock.Wait();
+            Task.Factory.StartNew(() =>
             {
-                cachingLock.Wait();
-                fileLogger.Debug(Tag, "caching: !ack -> finishing entered lock");
-                Task.Factory.StartNew(() =>
+                rawPacket = blockQueue.Dequeue();
+                if (!rawPacket.Ack)
                 {
+                    fileLogger.Debug(Tag, "caching: !ack -> finishing entered lock");
                     if (cachedContentLength != responseContentLength)
                     {
                         while (queuedPackets.ContainsKey(expectedSequence))
@@ -264,12 +284,16 @@ namespace Sentro.Traffic
                             cachePacket(rawPacket);
                         }
                     }
-                    cachingFileStream.Flush();
-                    cachingFileStream.Close();
-                    cachingFileStream.Dispose();
-                    cachingFileStream = null;
-                    queuedPackets.Clear();
-                    queuedPackets = null;
+                    if (cachingFileStream != null)
+                    {
+                        cachingFileStream.Flush();
+                        cachingFileStream.Close();
+                        cachingFileStream.Dispose();
+                        cachingFileStream = null;
+                        queuedPackets.Clear();
+                        queuedPackets = null;
+                    }
+                   
                     if (cachedContentLength < responseContentLength)
                     {
                         CacheManager.Delete(hashOfLastHttpGet);
@@ -279,49 +303,39 @@ namespace Sentro.Traffic
                     responseContentLength = cachedContentLength = 0;
                     expectedSequence = 0;
 
-                }, TaskCreationOptions.LongRunning).ContinueWith(task =>
+                    fileLogger.Debug(Tag, "caching: !ack -> closed");
+                    CurrentState = State.Closed;                    
+                }
+                else
                 {
-                    cachingLock.Release();
-                    fileLogger.Debug(Tag, "caching: exit lock !ack");
-                });
+                    
+                    fileLogger.Debug(Tag, "caching: ack -> entered lock");
+                    var packetSeq = rawPacket.SeqNumber - (uint) rawPacket.DataLength;
+                    fileLogger.Debug(Tag, $"caching: pacletSeq before task start {packetSeq}");
 
-                fileLogger.Debug(Tag, "caching: !ack -> closed");
-                Closed(rawPacket, address);
-            }
-            else
-            {
-                SendAsync(rawPacket, address);
-                cachingLock.Wait();
-                fileLogger.Debug(Tag, "caching: ack -> entered lock");
-                Task.Factory.StartNew(() =>
-                {
-                    if (!IsOut(rawPacket, address))
-                    {
-                        fileLogger.Debug(Tag, "caching: ack in -> return");
-                        return;
-                    }
-                    var packetSeq = rawPacket.SeqNumber;
+                    fileLogger.Debug(Tag, $"caching: in task packetSeq {packetSeq} expectedSeq {expectedSequence}");
                     if (packetSeq == expectedSequence || queuedPackets.ContainsKey(expectedSequence))
                     {
                         if (packetSeq != expectedSequence)
                         {
-                            fileLogger.Debug(Tag, "caching: packet taked from queue");
+                            fileLogger.Debug(Tag, "caching: packet taken from queue");
                             rawPacket = queuedPackets[expectedSequence];
+                            queuedPackets.Remove(expectedSequence);
                         }
                         cachePacket(rawPacket);
                     }
                     else
                     {
                         fileLogger.Debug(Tag, "caching: queued packet");
-                        queuedPackets.Add(packetSeq, rawPacket);
+                        queuedPackets.AddOrReplace(packetSeq, rawPacket);
                     }
 
-                }, TaskCreationOptions.LongRunning).ContinueWith(task =>
-                {
-                    cachingLock.Release();
-                    fileLogger.Debug(Tag, "caching: ack -> exit lock");
-                });
-            }
+                }
+            }, TaskCreationOptions.LongRunning | TaskCreationOptions.PreferFairness).ContinueWith(task =>
+            {
+                cachingLock.Release();
+                fileLogger.Debug(Tag, "caching: exit lock !ack");
+            });
         }
 
         private void cachePacket(Packet rawPacket)
@@ -332,6 +346,7 @@ namespace Sentro.Traffic
             cachingFileStream.Flush();
             expectedSequence += (uint)packetLength;
             cachedContentLength += packetLength;
+            fileLogger.Debug(Tag, $"write function: expSeq {expectedSequence} cachedLength {cachedContentLength}");
         }
                             
         private void SendingCache(Packet rawPacket,Address address)
