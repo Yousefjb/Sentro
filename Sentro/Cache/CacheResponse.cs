@@ -2,16 +2,19 @@
 using System.IO;
 using Divert.Net;
 using Sentro.Traffic;
+using Sentro.Utilities;
 
 namespace Sentro.Cache
 {
     public class CacheResponse
     {
         private readonly FileStream _fileStream;
+        private FileLogger fileLogger;
         private bool _closed;      
         public CacheResponse(FileStream fs)
         {
             _fileStream = fs;
+            fileLogger = FileLogger.GetInstance();
         }
 
         public void Close()
@@ -19,7 +22,7 @@ namespace Sentro.Cache
             _closed = true;
             _fileStream.Close();
         }
-
+        
         public IEnumerable<Packet> NetworkPackets
         {
             get
@@ -31,9 +34,23 @@ namespace Sentro.Cache
                     byte[] rawPacket = new byte[1500];
                     var stepRead = _fileStream.Read(rawPacket, 40, 1420);
                     read += stepRead;
+                    fileLogger.Debug("netowrkPacket","read : " +read);
                     yield return new Packet(rawPacket, (uint) stepRead + 40);                    
                 }
             }
+        }
+
+        private IEnumerator<Packet> enumerator;
+        public Packet NextPacket()
+        {
+            if (enumerator == null)
+                enumerator = NetworkPackets.GetEnumerator();
+            if (enumerator.MoveNext())
+            {
+                fileLogger.Debug("netowrkPacket", "i found next packet");
+                return enumerator.Current;
+            }
+            return null;
         }
 
         public IEnumerable<Packet> MissedPacket(params int[] packetNumber)

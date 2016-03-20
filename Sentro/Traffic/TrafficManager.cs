@@ -36,9 +36,9 @@ namespace Sentro.Traffic
 
             try
             {
-                diversion = Diversion.Open(filter, layer,100, 0);
-                //diversion.SetParam(DivertParam.QueueLength, 8192);
-                //diversion.SetParam(DivertParam.QueueTime, 2048);
+                diversion = Diversion.Open(filter, layer,1000, 0);
+                diversion.SetParam(DivertParam.QueueLength, 8192);
+                diversion.SetParam(DivertParam.QueueTime, 2048);
             }
             catch (Exception e)
             {
@@ -68,7 +68,7 @@ namespace Sentro.Traffic
 
                 var hash = packet.GetHashCode();
                 if (!KvStore.Connections.ContainsKey(hash))
-                    KvStore.Connections.TryAdd(hash, new Connection(diversion) {HashCode = hash});
+                    KvStore.Connections.TryAdd(hash, new Connection(diversion,address) {HashCode = hash});
 
                 //Controlling Logic maybe              
                 KvStore.Connections[hash].Add(packet,address);                
@@ -99,6 +99,7 @@ namespace Sentro.Traffic
             _running = true;
             new Thread(CallDivertNetworkForward).Start();
             new Thread(CallDivertNetwork).Start();
+
         }
 
         private void CallDivertNetworkForward()

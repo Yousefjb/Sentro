@@ -27,14 +27,14 @@ namespace Sentro.Utilities
         {
             
             Reload();
-            Task.Run(() =>
-            {
-                while (true)
-                {
-                    Reload();                    
-                    Thread.Sleep(Convert.ToInt32(Setting.SettingsReloadRate));
-                }
-            });
+            //Task.Run(() =>
+            //{
+            //    while (true)
+            //    {
+            //        Reload();                    
+            //        Thread.Sleep(Convert.ToInt32(Setting.SettingsReloadRate));
+            //    }
+            //});
         }
 
         private void Reload()
@@ -52,5 +52,21 @@ namespace Sentro.Utilities
                 _fileLogger.Error(Tag, e.ToString());
             }
         }
+
+        public class ARP
+        {
+            public uint frequency;
+            public string interfaceIp;
+            public bool targetAll;
+            public string[] targetIps;
+            public string[] doNotTarget;
+
+        }
+
+        public class CACHE
+        {
+            public string path;
+        }
+
     }    
 }

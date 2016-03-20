@@ -34,22 +34,22 @@ namespace Sentro.Utilities
 
         public void Debug(string tag, string message)
         {
-            writelock.Wait();
-            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
-            _file.Write(bytes, 0, bytes.Length);
-            _file.Flush();
-            writelock.Release();
+            //writelock.Wait();
+            //var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            //var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
+            //_file.Write(bytes, 0, bytes.Length);
+            //_file.Flush();
+            //writelock.Release();
         }
 
         public void Info(string tag, string message)
         {
-            writelock.Wait();
-            var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            var bytes = Encoding.ASCII.GetBytes($"{time} Info {tag} {message}\n");
-            _file.Write(bytes, 0, bytes.Length);
-            _file.Flush();
-            writelock.Release();
+            //writelock.Wait();
+            //var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            //var bytes = Encoding.ASCII.GetBytes($"{time} Info {tag} {message}\n");
+            //_file.Write(bytes, 0, bytes.Length);
+            //_file.Flush();
+            //writelock.Release();
         }
 
         public void Error(string tag, string message)

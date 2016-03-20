@@ -1,6 +1,6 @@
 ﻿{
   "ArpSpoofer": {
-    "Frequency": "30000"
+    "Frequency": "15000"
   },
   
   "SettingsReloadRate": "6000000",
@@ -15,11 +15,6 @@
 
   "Cache": {
     "Path": "G:\\SentroCache"
-  },
-
-  "Traffic": {
-    "InBufferSize": "5242880", //5MB
-    "OutBufferSize": "2048" //1KB
   }
 
 }

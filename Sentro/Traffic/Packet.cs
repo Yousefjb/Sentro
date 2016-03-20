@@ -88,45 +88,18 @@ namespace Sentro.Traffic
         public int DataStart => TcpStart + TcpHeaderLength;        
         public int DataLength => (int) _length - DataStart;
 
-        public bool Fin
-        {
-            get
-            {
-                var fin = _packet[TcpStart + 13] | 1;
-                return (fin == 1 || fin == 9);
-            }
-        }
+        public bool Fin => _packet[TcpStart + 13] == 1 || _packet[TcpStart + 13] == 9;
+                
+        public bool Syn => _packet[TcpStart + 13] == 2 || _packet[TcpStart + 13] == 10;     
 
-        public bool Syn
-        {
-            get
-            {
-                var syn = _packet[TcpStart + 13] | 2;
-                return (syn == 2 || syn == 10);
-            }
-        }    
+        public bool Rst => _packet[TcpStart + 13] == 4 || _packet[TcpStart + 13] == 12;     
 
-        public bool Rst
-        {
-            get
-            {
-                var rst = _packet[TcpStart + 13] | 4;
-                return (rst == 4 || rst == 12);
-            }
-        }
-
-        public bool Ack
-        {
-            get
-            {
-                var ack = _packet[TcpStart + 13] | 16;
-                return (ack == 16 || ack == 24);
-            }
-        }
-            
-        public bool SynAck => Syn && Ack;
-        public bool FinAck => Fin && Ack;
-        
+        public bool Ack => _packet[TcpStart + 13] == 16 || _packet[TcpStart + 13] == 24;
+       
+        public bool SynAck => _packet[TcpStart + 13] == 18 || _packet[TcpStart + 13] == 26;
+               
+        public bool FinAck => _packet[TcpStart + 13] == 17 || _packet[TcpStart + 13] == 25;
+     
 
         private string uri = "";
 
