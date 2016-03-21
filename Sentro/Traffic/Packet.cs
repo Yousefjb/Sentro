@@ -12,15 +12,15 @@ namespace Sentro.Traffic
         private uint _length;
         private FileLogger _fileLogger;       
 
-        private int TcpStart,TcpHeaderLength;
+        private int _tcpStart,_tcpHeaderLength;
 
         public Packet(byte[] rawPacket, uint packetLength)
         {
             _fileLogger = FileLogger.GetInstance();
             _packet = rawPacket;
             _length = packetLength;
-            TcpStart = (rawPacket[0] & 15)*4;
-            TcpHeaderLength = (rawPacket[TcpStart + 12] >> 4)*4;
+            _tcpStart = (rawPacket[0] & 15)*4;
+            _tcpHeaderLength = (rawPacket[_tcpStart + 12] >> 4)*4;
         }                                                    
 
         public byte[] RawPacket => _packet;
@@ -39,7 +39,7 @@ namespace Sentro.Traffic
 
         public ushort SrcPort =>
             (ushort)
-                (((0 | _packet[TcpStart + 0]) << 8) | _packet[TcpStart + 1]);
+                (((0 | _packet[_tcpStart + 0]) << 8) | _packet[_tcpStart + 1]);
 
         public uint SrcIp =>
             (uint)
@@ -48,28 +48,34 @@ namespace Sentro.Traffic
 
         public ushort DestPort =>
             (ushort)
-                (((0 | _packet[TcpStart + 2]) << 8) | _packet[TcpStart + 3]);
+                (((0 | _packet[_tcpStart + 2]) << 8) | _packet[_tcpStart + 3]);
       
         public uint AckNumber =>
             (uint)
-                (((((((0 | _packet[TcpStart + 8]) << 8) | _packet[TcpStart + 9]) << 8) | _packet[TcpStart + 10]) <<
-                  8) | _packet[TcpStart + 11]);
+                (((((((0 | _packet[_tcpStart + 8]) << 8) | _packet[_tcpStart + 9]) << 8) | _packet[_tcpStart + 10]) <<
+                  8) | _packet[_tcpStart + 11]);
 
         public uint SeqNumber =>
             (uint)
-                (((((((0 | _packet[TcpStart + 4]) << 8) | _packet[TcpStart + 5]) << 8) | _packet[TcpStart + 6]) <<
-                  8) | _packet[TcpStart + 7]);
+                (((((((0 | _packet[_tcpStart + 4]) << 8) | _packet[_tcpStart + 5]) << 8) | _packet[_tcpStart + 6]) <<
+                  8) | _packet[_tcpStart + 7]);
 
         public ushort WindowSize =>
             (ushort)
-                (((0 | _packet[TcpStart + 14]) << 8) | _packet[TcpStart + 15]);
+                (((0 | _packet[_tcpStart + 14]) << 8) | _packet[_tcpStart + 15]);
+
+        public ushort Id =>
+            (ushort)
+                (((0 | _packet[4]) << 8) | _packet[5]);
+
+        public int TcpStart => _tcpStart;
 
         public byte WindowScale
         {
             get
             {
-                var i = TcpStart + 20;
-                var j = TcpStart + TcpHeaderLength;
+                var i = _tcpStart + 20;
+                var j = _tcpStart + _tcpHeaderLength;
                 while (i < j)                       
                 {
                     if (_packet[i] == 1)
@@ -85,20 +91,20 @@ namespace Sentro.Traffic
             }
         }
 
-        public int DataStart => TcpStart + TcpHeaderLength;        
+        public int DataStart => _tcpStart + _tcpHeaderLength;        
         public int DataLength => (int) _length - DataStart;
 
-        public bool Fin => _packet[TcpStart + 13] == 1 || _packet[TcpStart + 13] == 9;
+        public bool Fin => _packet[_tcpStart + 13] == 1 || _packet[_tcpStart + 13] == 9;
                 
-        public bool Syn => _packet[TcpStart + 13] == 2 || _packet[TcpStart + 13] == 10;     
+        public bool Syn => _packet[_tcpStart + 13] == 2 || _packet[_tcpStart + 13] == 10;     
 
-        public bool Rst => _packet[TcpStart + 13] == 4 || _packet[TcpStart + 13] == 12;     
+        public bool Rst => _packet[_tcpStart + 13] == 4 || _packet[_tcpStart + 13] == 12;     
 
-        public bool Ack => _packet[TcpStart + 13] == 16 || _packet[TcpStart + 13] == 24;
+        public bool Ack => _packet[_tcpStart + 13] == 16 || _packet[_tcpStart + 13] == 24;
        
-        public bool SynAck => _packet[TcpStart + 13] == 18 || _packet[TcpStart + 13] == 26;
+        public bool SynAck => _packet[_tcpStart + 13] == 18 || _packet[_tcpStart + 13] == 26;
                
-        public bool FinAck => _packet[TcpStart + 13] == 17 || _packet[TcpStart + 13] == 25;
+        public bool FinAck => _packet[_tcpStart + 13] == 17 || _packet[_tcpStart + 13] == 25;
      
 
         private string uri = "";
@@ -153,6 +159,19 @@ namespace Sentro.Traffic
                     requestUri = IsHttpGet() ? uri : "";
                 return requestUri;
             }
+        }
+
+        public static class Constant
+        {
+            public const byte Fin = 1;
+            public const byte Syn = 2;
+            public const byte Rst = 4;
+            public const byte Psh = 8;
+            public const byte Ack = 16;
+
+            public const byte EthernetHeaderLenght = 12;
+            public const byte TcpDefaultHeaderSize = 20;
+            public const byte IpDefaultHeaderSize = 20;
         }
     }
 }

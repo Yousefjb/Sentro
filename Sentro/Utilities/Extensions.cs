@@ -90,5 +90,11 @@ namespace Sentro.Utilities
                 dictionary.Add(key,packet);            
         }
 
+        public static string AsString(this uint ip)
+        {
+            var bytes = BitConverter.GetBytes(ip);
+            return $"{bytes[0]}.{bytes[1]}.{bytes[2]}.{bytes[3]}";
+        }
+
     }
 }

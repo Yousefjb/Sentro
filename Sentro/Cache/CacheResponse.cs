@@ -29,6 +29,9 @@ namespace Sentro.Cache
             {
                 long length = _fileStream.Length;
                 long read = 0;
+                var headersPacket = HeadersPacket();
+                yield return headersPacket;
+                read += headersPacket.DataLength;
                 while (read < length && !_closed)
                 {
                     byte[] rawPacket = new byte[1500];
@@ -38,6 +41,16 @@ namespace Sentro.Cache
                     yield return new Packet(rawPacket, (uint) stepRead + 40);                    
                 }
             }
+        }
+
+        private Packet HeadersPacket()
+        {
+            var firstByte = _fileStream.ReadByte();
+            var secondByte = _fileStream.ReadByte();
+            var headersLength = (firstByte << 8) | secondByte;
+            byte[] headersPacket = new byte[1500];
+            _fileStream.Read(headersPacket, 40, headersLength);
+            return new Packet(headersPacket, (uint) headersLength + 40);
         }
 
         private IEnumerator<Packet> enumerator;
