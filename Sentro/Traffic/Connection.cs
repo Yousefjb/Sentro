@@ -171,7 +171,7 @@ namespace Sentro.Traffic
                     Transferring(rawPacket);
                 else
                 {
-                    hashOfLastHttpGet = rawPacket.Uri.Normalize().MurmurHash();
+                    hashOfLastHttpGet = rawPacket.Uri.NormalizeUri().MurmurHash();
                     if (CacheManager.IsCached(hashOfLastHttpGet))
                     {
                         var ackpacket = GetAckPacket(rawPacket);
@@ -409,6 +409,7 @@ namespace Sentro.Traffic
             if (calculatedWinSize < limitWindowSize)
                 return;
 
+            Console.WriteLine(count);
             for (; count <= 0; count--)
             {
                 var nextPacket = cacheResponse.NextPacket();                
@@ -416,7 +417,7 @@ namespace Sentro.Traffic
                 {
                     SetFakeHeaders(nextPacket, savedRequestPacket, random++, seq, ack, firstCachedPacketToSend);
                     SetChecksum(nextPacket,ipChecksum);
-                    SendAsync(nextPacket);
+                    Send(nextPacket);
                     seq += nextPacket.RawPacketLength - 40;
                     firstCachedPacketToSend = 0;
                 }

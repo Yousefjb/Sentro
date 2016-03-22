@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using System;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SentroTest
 {
@@ -24,6 +25,20 @@ namespace SentroTest
             };
             
             Assert.AreEqual(11184,TcpChecksum(packet));
+        }
+
+        [TestMethod]
+        public void Test_uint_asString()
+        {
+            var ip = 3232235525;
+            string ipString = AsString(ip);
+            Assert.AreEqual(@"192.168.0.5", ipString);
+        }
+
+        public string AsString(uint ip)
+        {
+            var bytes = BitConverter.GetBytes(ip);
+            return $"{bytes[3]}.{bytes[2]}.{bytes[1]}.{bytes[0]}";
         }
 
         public ushort TcpChecksum(byte[] packet)
