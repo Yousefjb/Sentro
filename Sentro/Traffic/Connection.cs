@@ -401,10 +401,14 @@ namespace Sentro.Traffic
             if (IsIn(rawPacket))
                 return;
 
-            int count = 0;
+            uint count = 0;
+            uint calculatedWinSize = (uint)(rawPacket.WindowSize*(1 << _windowScale));
             if (KvStore.TargetIps.Contains(rawPacket.SrcIp.AsString()))
-                count = (rawPacket.WindowSize*(1 << _windowScale))/2000;
-            
+                count = calculatedWinSize/2000;                   
+
+            if (calculatedWinSize < limitWindowSize)
+                return;
+
             for (; count <= 0; count--)
             {
                 var nextPacket = cacheResponse.NextPacket();                
