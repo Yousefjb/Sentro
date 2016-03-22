@@ -403,16 +403,15 @@ namespace Sentro.Traffic
 
             int count = 0;
             if (KvStore.TargetIps.Contains(rawPacket.SrcIp.AsString()))
-                count = (rawPacket.WindowSize*(1 << _windowScale))/1500;
-
+                count = (rawPacket.WindowSize*(1 << _windowScale))/2000;
+            
             for (; count <= 0; count--)
             {
                 var nextPacket = cacheResponse.NextPacket();                
                 if (nextPacket != null)
                 {
                     SetFakeHeaders(nextPacket, savedRequestPacket, random++, seq, ack, firstCachedPacketToSend);
-                    //ipChecksum = ipChecksum == 0 ? CalculateIpChecksum(nextPacket) : ipChecksum;
-                    SetChecksum(nextPacket, ipChecksum);                    
+                    SetChecksum(nextPacket,ipChecksum);
                     SendAsync(nextPacket);
                     seq += nextPacket.RawPacketLength - 40;
                     firstCachedPacketToSend = 0;
@@ -425,7 +424,6 @@ namespace Sentro.Traffic
                     break;
                 }
             }
-
         }
 
         private Packet GetAckPacket(Packet request)
@@ -577,16 +575,11 @@ namespace Sentro.Traffic
             for (i = 12; i < 20; i += 2)
                 checksum += ((uint)((rawPacket.RawPacket[i] << 8) | rawPacket.RawPacket[i+1]));
             checksum += 6;
-            checksum += (rawPacket.RawPacketLength - 20);            
+            checksum += (rawPacket.RawPacketLength - 20);
 
-            var carry = checksum >> 16;
-            checksum &= 0xffff;
-            while (carry > 0)
-            {
-                checksum += carry;
-                checksum &= 0xffff;
-                carry = checksum >> 16;
-            }
+            while (checksum >> 16 != 0)
+                checksum = (checksum & 0xffff) + (checksum >> 16);
+
 
             checksum = ~checksum;
             var result = (ushort)checksum;
