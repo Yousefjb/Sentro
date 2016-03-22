@@ -396,7 +396,8 @@ namespace Sentro.ARP
 
         private bool MakeSureTargetIsReadyToBeAttacked(NetworkInterface networkInterface, string target)
         {
-            if (!KvStore.IpMac[target].IsNullOrEmpty()) return true;
+            if (KvStore.IpMac.ContainsKey(target))
+                return true;
 
             var mac = NetworkUtilites.GetMacAddress(target);
             if (mac.Length <= 0)
@@ -442,6 +443,8 @@ namespace Sentro.ARP
         {
             _status = Status.Stopping;
             var livePacketDevice = NetworkUtilites.GetLivePacketDevice(_myIp);
+            if(livePacketDevice == null)
+                return;
             PacketCommunicator communicator = livePacketDevice.Open(1, PacketDeviceOpenAttributes.None, 10);
             AfterAttack(livePacketDevice.GetNetworkInterface(), communicator);
             communicator.Dispose();

@@ -47,7 +47,7 @@ namespace Sentro.Cache
                 if (FileHierarchy.Exist(hash))
                 {
                     var path = FileHierarchy.MapToFilePath(hash);
-                    FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    FileStream fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);                    
                     cacheResponse = new CacheResponse(fs);
                 }                
             }

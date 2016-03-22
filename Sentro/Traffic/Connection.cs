@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Timers;
 using Divert.Net;
 using Sentro.Cache;
 using Sentro.Utilities;
+using Timer = System.Timers.Timer;
 
 // ReSharper disable InconsistentNaming
 namespace Sentro.Traffic
@@ -88,7 +91,7 @@ namespace Sentro.Traffic
   
         private byte _windowScale = 5;
 
-        public void Add(Packet rawPacket,Address addressLoop)
+        public void Add(Packet rawPacket, Address addressLoop)
         {
             address = addressLoop;
             if (rawPacket.Syn)
@@ -99,9 +102,7 @@ namespace Sentro.Traffic
 
             timeoutTimer.Stop();
             timeoutTimer.Start();
-
             fileLogger.Debug(Tag, $"{rawPacket.SrcIp}:{rawPacket.SrcPort}->{rawPacket.DestIp}:{rawPacket.DestPort}");
-
             switch (CurrentState)
             {
                 case State.Closed:
@@ -121,7 +122,7 @@ namespace Sentro.Traffic
                     break;
                 case State.Transferring:
                     Transferring(rawPacket);
-                    break;              
+                    break;
                 default:
                     SendAsync(rawPacket);
                     break;
@@ -344,19 +345,22 @@ namespace Sentro.Traffic
         private Packet savedRequestPacket;
         private byte firstCachedPacketToSend;        
         private ushort ipChecksum = 0;
-        private void SendingCacheV2(Packet rawPacket)
+        private SemaphoreSlim seqSemaphore;
+
+        private async void SendingCacheV2(Packet rawPacket)
         {
-            fileLogger.Debug(Tag,"----- sending cache -----");
+            fileLogger.Debug(Tag, "----- sending cache -----");
             CurrentState = State.SendingCache;
             if (cacheResponse == null)
             {
                 fileLogger.Debug(Tag, "get cache response from disk");
                 cacheResponse = CacheManager.Get(hashOfLastHttpGet);
-                random = (ushort)DateTime.Now.Millisecond;
+                random = (ushort) DateTime.Now.Millisecond;
                 seq = rawPacket.AckNumber;
-                ack = rawPacket.SeqNumber + (uint)rawPacket.DataLength;
+                ack = rawPacket.SeqNumber + (uint) rawPacket.DataLength;
                 savedRequestPacket = rawPacket;
-                firstCachedPacketToSend = 8;                
+                firstCachedPacketToSend = 8;
+                seqSemaphore = new SemaphoreSlim(1, 1);
             }
 
             if (IsIn(rawPacket))
@@ -365,17 +369,17 @@ namespace Sentro.Traffic
                 return;
             }
 
-            if(rawPacket.AckNumber != seq)
+            if (rawPacket.AckNumber != seq)
                 return;
 
             uint count = 0;
-            uint calculatedWinSize = (uint)(rawPacket.WindowSize*(1 << _windowScale));
+            uint calculatedWinSize = (uint) (rawPacket.WindowSize*(1 << _windowScale));
 
             if (KvStore.TargetIps.Contains(rawPacket.SrcIp.AsString()))
-                limitWindowSize = 3300;
+                limitWindowSize = 3000;
             else limitWindowSize = 2000;
 
-            count = calculatedWinSize/ limitWindowSize;
+            count = calculatedWinSize/limitWindowSize;
 
             fileLogger.Debug(Tag, $"will send {count} packets");
             if (calculatedWinSize < limitWindowSize)
@@ -383,26 +387,38 @@ namespace Sentro.Traffic
                 fileLogger.Debug(Tag, "window size is low,dont send");
                 return;
             }
-
-            for (; count > 0; count--)
+            try
             {
-                var nextPacket = cacheResponse.NextPacket();                
-                if (nextPacket != null)
+                Parallel.For(0, count, (i, loopstate) =>
                 {
-                    SetFakeHeaders(nextPacket, savedRequestPacket, random++, seq, ack, firstCachedPacketToSend);
-                    SetChecksum(nextPacket,ipChecksum);
-                    Send(nextPacket);
-                    seq += nextPacket.RawPacketLength - 40;
-                    firstCachedPacketToSend = 0;
-                }
-                else
-                {
-                    fileLogger.Debug(Tag, "close cache file");
-                    cacheResponse.Close();
-                    cacheResponse = null;
-                    CurrentState = State.Closed;
-                    break;
-                }
+                    if (cacheResponse != null)
+                    {
+                        seqSemaphore?.Wait();
+                        var nextPacket = cacheResponse?.NextPacket();
+                        if (nextPacket != null)
+                        {
+                            SetFakeHeaders(nextPacket, savedRequestPacket, random++, seq, ack, firstCachedPacketToSend);
+                            seq += nextPacket.RawPacketLength - 40;
+                            seqSemaphore?.Release();
+                            SetChecksum(nextPacket, ipChecksum);
+                            SendAsync(nextPacket);
+                            firstCachedPacketToSend = 0;
+                        }
+                        else
+                        {
+                            fileLogger.Debug(Tag, "close cache file");
+                            cacheResponse?.Close();
+                            cacheResponse = null;
+                            CurrentState = State.Closed;
+                            seqSemaphore?.Release();
+                            loopstate.Stop();
+                        }
+                    }
+                });
+            }
+            catch (Exception)
+            {
+
             }
         }
 
@@ -596,8 +612,9 @@ namespace Sentro.Traffic
         }
 
         private void Send(Packet rawPacket)
-        {            
-            diversion.Send(rawPacket.RawPacket, rawPacket.RawPacketLength,address, ref _sentLength);
+        {
+            //diversion.Send(rawPacket.RawPacket, rawPacket.RawPacketLength,address, ref _sentLength);
+            diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
         }
         private void SendAsync(Packet rawPacket)
         {
