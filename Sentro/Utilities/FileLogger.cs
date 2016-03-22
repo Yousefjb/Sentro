@@ -29,14 +29,15 @@ namespace Sentro.Utilities
             directoryInfo?.Create();
             if (directoryInfo != null) directoryInfo.Attributes &= ~FileAttributes.ReadOnly;
             _file = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
-            writelock = new SemaphoreSlim(1);
+            writelock = new SemaphoreSlim(1,1);
         }
 
         public void Debug(string tag, string message)
         {
             //writelock.Wait();
-            //var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
-            //var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
+            ////var time = $"{index++} {DateTime.Now.Hour}:{DateTime.Now.Minute}:{DateTime.Now.Second}";
+            ////var bytes = Encoding.ASCII.GetBytes($"{time} Debug {tag} {message}\n");
+            //var bytes = Encoding.ASCII.GetBytes($"{tag} {message}\n");
             //_file.Write(bytes, 0, bytes.Length);
             //_file.Flush();
             //writelock.Release();

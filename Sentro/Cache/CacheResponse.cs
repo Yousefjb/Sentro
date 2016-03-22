@@ -20,7 +20,7 @@ namespace Sentro.Cache
         public void Close()
         {
             _closed = true;
-            _fileStream.Close();
+            _fileStream.Dispose();            
         }
         
         public IEnumerable<Packet> NetworkPackets
