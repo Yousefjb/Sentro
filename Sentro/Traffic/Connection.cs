@@ -313,6 +313,7 @@ namespace Sentro.Traffic
                 if (cachedContentLength < responseContentLength)
                 {
                     fileLogger.Debug(Tag, $"incomple {hashOfLastHttpGet}, delete the cache");
+                    Console.WriteLine("deleting {0}",hashOfLastHttpGet);
                     CacheManager.Delete(hashOfLastHttpGet);
                 }
 
@@ -346,8 +347,7 @@ namespace Sentro.Traffic
         private byte firstCachedPacketToSend;        
         private ushort ipChecksum = 0;
         private SemaphoreSlim seqSemaphore;
-
-        private async void SendingCacheV2(Packet rawPacket)
+        private void SendingCacheV2(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- sending cache -----");
             CurrentState = State.SendingCache;
@@ -360,7 +360,7 @@ namespace Sentro.Traffic
                 ack = rawPacket.SeqNumber + (uint) rawPacket.DataLength;
                 savedRequestPacket = rawPacket;
                 firstCachedPacketToSend = 8;
-                seqSemaphore = new SemaphoreSlim(1, 1);
+                seqSemaphore = new SemaphoreSlim(1, 1);                                          
             }
 
             if (IsIn(rawPacket))
@@ -401,7 +401,7 @@ namespace Sentro.Traffic
                             seq += nextPacket.RawPacketLength - 40;
                             seqSemaphore?.Release();
                             SetChecksum(nextPacket, ipChecksum);
-                            SendAsync(nextPacket);
+                            SendAsync(nextPacket);                            
                             firstCachedPacketToSend = 0;
                         }
                         else
@@ -411,7 +411,7 @@ namespace Sentro.Traffic
                             cacheResponse = null;
                             CurrentState = State.Closed;
                             seqSemaphore?.Release();
-                            loopstate.Stop();
+                            loopstate.Stop();                            
                         }
                     }
                 });
@@ -612,7 +612,7 @@ namespace Sentro.Traffic
         }
 
         private void Send(Packet rawPacket)
-        {
+        {            
             //diversion.Send(rawPacket.RawPacket, rawPacket.RawPacketLength,address, ref _sentLength);
             diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
         }
