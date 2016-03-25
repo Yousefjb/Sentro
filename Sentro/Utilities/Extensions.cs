@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text;
@@ -82,12 +83,12 @@ namespace Sentro.Utilities
             return url;
         }
 
-        public static void AddOrReplace(this Dictionary<uint, Packet> dictionary,uint key, Packet packet)
+        public static void AddOrReplace(this ConcurrentDictionary<uint, Packet> dictionary,uint key, Packet packet)
         {
             if (dictionary.ContainsKey(key))
                 dictionary[key] = packet;
             else
-                dictionary.Add(key,packet);            
+                dictionary.TryAdd(key, packet);
         }
 
         public static string AsString(this uint ip)

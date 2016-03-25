@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -37,6 +38,7 @@ namespace Sentro.Traffic
             }
         }
 
+        private SemaphoreSlim IOSemaphore;
         private Address address;
         public Connection(Diversion diversion,Address address)
         {
@@ -49,6 +51,7 @@ namespace Sentro.Traffic
             fileLogger = FileLogger.GetInstance();
             fileLogger.Debug(Tag, "new connection");
             this.address = address;
+            IOSemaphore = new SemaphoreSlim(1,1);
         }
 
         private void OnTimeout(object source,ElapsedEventArgs e)
@@ -244,7 +247,7 @@ namespace Sentro.Traffic
         }
 
         private FileStream cachingFileStream;
-        private Dictionary<uint, Packet> queuedPackets;
+        private ConcurrentDictionary<uint, Packet> queuedPackets;        
         private int responseContentLength;
         private uint expectedSequence;
         private int cachedContentLength;        
@@ -258,7 +261,7 @@ namespace Sentro.Traffic
             {
                 fileLogger.Debug(Tag, "init http response for cache");
                 cachingFileStream = CacheManager.OpenFileWriteStream(hashOfLastHttpGet);
-                queuedPackets = new Dictionary<uint, Packet>();                         
+                queuedPackets = new ConcurrentDictionary<uint, Packet>();
                 responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;
                 expectedSequence = rawPacket.SeqNumber;
                 firstPacketToCache = true;
@@ -277,7 +280,8 @@ namespace Sentro.Traffic
                     if (packetSeq != expectedSequence)
                     {
                         rawPacket = queuedPackets[expectedSequence];
-                        queuedPackets.Remove(expectedSequence);                        
+                        Packet emptyPacket;
+                        queuedPackets.TryRemove(expectedSequence,out emptyPacket);
                     }
                     cachePacket(rawPacket, firstPacketToCache);
                     firstPacketToCache = false;
@@ -330,6 +334,7 @@ namespace Sentro.Traffic
 
         private void cachePacket(Packet rawPacket,bool writeLengthFirst)
         {
+            IOSemaphore.Wait();
             var packetLength = rawPacket.DataLength;
             fileLogger.Debug(Tag, $"disk write {packetLength} bytes");
             expectedSequence += (uint) packetLength;
@@ -340,7 +345,8 @@ namespace Sentro.Traffic
                 cachingFileStream.Write(bytes, 0, 2);
             }
             cachingFileStream.Write(rawPacket.RawPacket, rawPacket.DataStart, packetLength);
-            cachingFileStream.Flush();            
+            cachingFileStream.Flush();
+            IOSemaphore.Release();
         }
 
         private CacheResponse cacheResponse;
