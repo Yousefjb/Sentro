@@ -115,7 +115,7 @@ namespace Sentro.Traffic
                     Connected(rawPacket);
                     break;
                 case State.SendingCache:
-                    SendingCacheV2(rawPacket);
+                    SendingCache(rawPacket);
                     break;
                 case State.WaitResponse:
                     WaitResponse(rawPacket);
@@ -149,7 +149,7 @@ namespace Sentro.Traffic
             else
             {
                 fileLogger.Debug(Tag, "send not ack");
-                Send(rawPacket);
+                SendAsync(rawPacket);
             }
         }
 
@@ -161,7 +161,7 @@ namespace Sentro.Traffic
             {
                 fileLogger.Debug(Tag, "fin | rst change to closes and send");
                 CurrentState = State.Closed;
-                Send(rawPacket);
+                SendAsync(rawPacket);
             }
             else if (IsOut(rawPacket) && rawPacket.Ack && (rawPacket.DataLength > 1))
             {
@@ -181,9 +181,9 @@ namespace Sentro.Traffic
                         var ackpacket = GetAckPacket(rawPacket);
                         SetChecksum(ackpacket);
                         ackpacket = AddEthernetPadding(ackpacket);
-                        Send(ackpacket);
+                        SendAsync(ackpacket);
                         fileLogger.Debug(Tag, "send request recived ack with padding");
-                        SendingCacheV2(rawPacket);
+                        SendingCache(rawPacket);
                     }
                     else
                     {
@@ -195,7 +195,7 @@ namespace Sentro.Traffic
             else
             {
                 fileLogger.Debug(Tag, "send packet [ in | not ack | 0 length");
-                Send(rawPacket);
+                SendAsync(rawPacket);
             }
         }
 
@@ -210,7 +210,7 @@ namespace Sentro.Traffic
             }
 
             fileLogger.Debug(Tag, "send");
-            Send(rawPacket);
+            SendAsync(rawPacket);
         }             
 
         private void WaitResponse(Packet rawPacket)
@@ -221,7 +221,7 @@ namespace Sentro.Traffic
             {
                 fileLogger.Debug(Tag, "send fin | rst");
                 CurrentState = State.Closed;
-                Send(rawPacket);
+                SendAsync(rawPacket);
             }
             else if (IsIn(rawPacket) && rawPacket.Ack && (rawPacket.DataLength > 1))
             {
@@ -239,7 +239,7 @@ namespace Sentro.Traffic
             else
             {
                 fileLogger.Debug(Tag, "send out | not ack | 0 length");
-                Send(rawPacket);
+                SendAsync(rawPacket);
             }
         }
 
@@ -247,7 +247,7 @@ namespace Sentro.Traffic
         private Dictionary<uint, Packet> queuedPackets;
         private int responseContentLength;
         private uint expectedSequence;
-        private int cachedContentLength;
+        private int cachedContentLength;        
         private bool firstPacketToCache;   
         private void Caching(Packet rawPacket)
         {
@@ -264,11 +264,12 @@ namespace Sentro.Traffic
                 firstPacketToCache = true;
             }
 
-            Send(rawPacket);
+            SendAsync(rawPacket);
             if (IsOut(rawPacket))            
-                return;            
-    
-            if (rawPacket.Ack && rawPacket.DataLength > 0)
+                return;
+
+            
+            if (rawPacket.DataLength > 0)
             {
                 var packetSeq = rawPacket.SeqNumber;
                 if (packetSeq == expectedSequence || queuedPackets.ContainsKey(expectedSequence))
@@ -276,7 +277,7 @@ namespace Sentro.Traffic
                     if (packetSeq != expectedSequence)
                     {
                         rawPacket = queuedPackets[expectedSequence];
-                        queuedPackets.Remove(expectedSequence);
+                        queuedPackets.Remove(expectedSequence);                        
                     }
                     cachePacket(rawPacket, firstPacketToCache);
                     firstPacketToCache = false;
@@ -284,7 +285,8 @@ namespace Sentro.Traffic
                 else
                 {
                     fileLogger.Debug(Tag, "queued packet");
-                    queuedPackets.AddOrReplace(packetSeq, rawPacket);
+                    queuedPackets.AddOrReplace(packetSeq, rawPacket);                    
+                    Console.WriteLine("pq {0}",queuedPackets.Count);
                 }
             }
             else
@@ -304,6 +306,7 @@ namespace Sentro.Traffic
                 if (cachingFileStream != null)
                 {
                     fileLogger.Debug(Tag, "dispose cache file and clear queue");
+                    cachingFileStream.Flush();
                     cachingFileStream.Dispose();
                     cachingFileStream = null;
                     queuedPackets.Clear();
@@ -333,7 +336,7 @@ namespace Sentro.Traffic
             cachedContentLength += packetLength;
             if (writeLengthFirst)
             {
-                byte[] bytes = {(byte) (rawPacket.DataLength >> 16), (byte) rawPacket.DataLength};
+                byte[] bytes = {(byte) (rawPacket.DataLength >> 8), (byte) rawPacket.DataLength};
                 cachingFileStream.Write(bytes, 0, 2);
             }
             cachingFileStream.Write(rawPacket.RawPacket, rawPacket.DataStart, packetLength);
@@ -347,7 +350,9 @@ namespace Sentro.Traffic
         private byte firstCachedPacketToSend;        
         private ushort ipChecksum = 0;
         private SemaphoreSlim seqSemaphore;
-        private void SendingCacheV2(Packet rawPacket)
+        private uint lastAck, lastAckRepetetion;
+        private Dictionary<uint, Packet> cachedSentPackets;
+        private void SendingCache(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- sending cache -----");
             CurrentState = State.SendingCache;
@@ -360,7 +365,8 @@ namespace Sentro.Traffic
                 ack = rawPacket.SeqNumber + (uint) rawPacket.DataLength;
                 savedRequestPacket = rawPacket;
                 firstCachedPacketToSend = 8;
-                seqSemaphore = new SemaphoreSlim(1, 1);                                          
+                seqSemaphore = new SemaphoreSlim(1, 1);
+                cachedSentPackets = new Dictionary<uint, Packet>();
             }
 
             if (IsIn(rawPacket))
@@ -368,19 +374,34 @@ namespace Sentro.Traffic
                 fileLogger.Debug(Tag, "dropped in packet");
                 return;
             }
+            
+            if (lastAck == rawPacket.AckNumber)
+            {
+                lastAckRepetetion++;
+                if (lastAckRepetetion >= 3)
+                    if (cachedSentPackets.ContainsKey(lastAck))
+                        SendAsync(cachedSentPackets[lastAck]);
+            }
+            else
+            {
+                lastAck = rawPacket.AckNumber;
+                lastAckRepetetion = 0;
+            }
 
             if (rawPacket.AckNumber != seq)
+            {               
                 return;
+            }
 
+            var isTarget = KvStore.TargetIps.Contains(rawPacket.SrcIp.AsString());
             uint count = 0;
             uint calculatedWinSize = (uint) (rawPacket.WindowSize*(1 << _windowScale));
 
-            if (KvStore.TargetIps.Contains(rawPacket.SrcIp.AsString()))
+            if (isTarget)
                 limitWindowSize = 3000;
             else limitWindowSize = 2000;
 
-            count = calculatedWinSize/limitWindowSize;
-
+            count = calculatedWinSize/limitWindowSize;            
             fileLogger.Debug(Tag, $"will send {count} packets");
             if (calculatedWinSize < limitWindowSize)
             {
@@ -401,7 +422,8 @@ namespace Sentro.Traffic
                             seq += nextPacket.RawPacketLength - 40;
                             seqSemaphore?.Release();
                             SetChecksum(nextPacket, ipChecksum);
-                            SendAsync(nextPacket);                            
+                            SendAsync(nextPacket);  
+                            cachedSentPackets.Add(nextPacket.SeqNumber,nextPacket);                          
                             firstCachedPacketToSend = 0;
                         }
                         else
@@ -411,7 +433,7 @@ namespace Sentro.Traffic
                             cacheResponse = null;
                             CurrentState = State.Closed;
                             seqSemaphore?.Release();
-                            loopstate.Stop();                            
+                            loopstate.Stop();
                         }
                     }
                 });
@@ -532,6 +554,8 @@ namespace Sentro.Traffic
             response.RawPacket[32] = 80;
 
             //flags are ack (16) and psh (8) = 24
+            if (response.DataLength < 1420 && Flag == 0)
+                Flag = 8;
             response.RawPacket[33] = (byte) (16 + Flag);
 
             //windows size 2 bytes
@@ -611,15 +635,10 @@ namespace Sentro.Traffic
             return (ushort)checksum;
         }
 
-        private void Send(Packet rawPacket)
-        {            
-            //diversion.Send(rawPacket.RawPacket, rawPacket.RawPacketLength,address, ref _sentLength);
-            diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
-        }
         private void SendAsync(Packet rawPacket)
-        {
+        {                        
             diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
-        }
+        }       
 
         private bool IsOut(Packet rawPacket)
         {

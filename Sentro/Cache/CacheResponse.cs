@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Sentro.Traffic;
 using Sentro.Utilities;
 
@@ -9,11 +10,13 @@ namespace Sentro.Cache
     {
         private readonly FileStream _fileStream;
         private FileLogger fileLogger;
-        private bool _closed;        
+        private bool _closed;
+        private SemaphoreSlim nextPacketSem;
         public CacheResponse(FileStream fs)
         {
             _fileStream = fs;            
-            fileLogger = FileLogger.GetInstance();            
+            fileLogger = FileLogger.GetInstance();
+            nextPacketSem = new SemaphoreSlim(1, 1);
         }
 
         public void Close()
@@ -55,15 +58,19 @@ namespace Sentro.Cache
 
         private IEnumerator<Packet> enumerator;      
         public Packet NextPacket()
-        {            
+        {
+            nextPacketSem.Wait();
             if (enumerator == null)
                 enumerator = NetworkPackets.GetEnumerator();
+            Packet nextPacket = null;
             if (enumerator.MoveNext())
             {
                 fileLogger.Debug("netowrkPacket", "i found next packet");         
-                return enumerator.Current;
-            }            
-            return null;
-        }     
+                nextPacket = enumerator.Current;
+            }
+            nextPacketSem.Release();        
+            return nextPacket;
+        }
+      
     }
 }
