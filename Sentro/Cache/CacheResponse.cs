@@ -25,6 +25,12 @@ namespace Sentro.Cache
             _fileStream.Dispose();            
         }
         
+        /*
+            return cached content as packets with empty 40 bytes at start to set
+            ip and tcp headers
+            
+             - used yield to make it lazy function
+        */
         public IEnumerable<Packet> NetworkPackets
         {
             get
@@ -45,7 +51,9 @@ namespace Sentro.Cache
             }
         }
 
-        
+        /*
+            read only the headers of the response and send them in seperate packet
+        */
         private Packet HeadersPacket()
         {
             var firstByte = _fileStream.ReadByte();
@@ -56,6 +64,9 @@ namespace Sentro.Cache
             return new Packet(headersPacket, (uint) headersLength + 40);
         }
 
+        /*
+            return the next packet in the cache response            
+        */
         private IEnumerator<Packet> enumerator;      
         public Packet NextPacket()
         {

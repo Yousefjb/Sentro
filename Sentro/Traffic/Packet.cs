@@ -159,19 +159,6 @@ namespace Sentro.Traffic
                     requestUri = IsHttpGet() ? uri : "";
                 return requestUri;
             }
-        }
-
-        public static class Constant
-        {
-            public const byte Fin = 1;
-            public const byte Syn = 2;
-            public const byte Rst = 4;
-            public const byte Psh = 8;
-            public const byte Ack = 16;
-
-            public const byte EthernetHeaderLenght = 12;
-            public const byte TcpDefaultHeaderSize = 20;
-            public const byte IpDefaultHeaderSize = 20;
-        }
+        }      
     }
 }

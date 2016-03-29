@@ -11,8 +11,7 @@ namespace Sentro
         Responsipility : Prevent multiple instances of sentro to be executed at the same time
     */
     class SingleGlobalInstance : IDisposable
-    {
-        public const string Tag = "SingleGlobalInstance";
+    {        
         public bool HasHandle = false;
         Mutex _mutex;
 

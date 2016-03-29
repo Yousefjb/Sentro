@@ -12,10 +12,7 @@ using Timer = System.Timers.Timer;
 
 // ReSharper disable InconsistentNaming
 namespace Sentro.Traffic
-{
-    /*
-        Responsibility : Hold es for a connection
-    */
+{ 
     class Connection
     {
         public string Tag = "Connection";

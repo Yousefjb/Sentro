@@ -9,9 +9,6 @@ using Sentro.Utilities;
 
 namespace Sentro
 {
-    /*
-        Responsipility : Entry point of the application
-    */
     public class Program
     {
         public const string Tag = "Program";
@@ -40,10 +37,7 @@ namespace Sentro
                             break;
                         case "traffic":
                             InputHandler.Traffic(command);
-                            break;
-                        //case "diverse":
-                        //    inputHandler.Diverse(command);
-                        //    break;                        
+                            break;                       
                         case "exit":
                             break;
                     }

