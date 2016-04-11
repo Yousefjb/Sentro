@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32;
 using PcapDotNet.Base;
 using Sentro.ARP;
 using Sentro.Traffic;
@@ -17,6 +18,12 @@ namespace Sentro
         {
             Console.Title = "Sentro";
             Console.WriteLine(Sento);
+            var needReboot = ConfigureRegistry();
+            if (needReboot)
+            {
+                Console.WriteLine("modified registry file, please reboot.");
+                return;
+            }
             using (new SingleGlobalInstance(1000))
             {
                 _handler = ConsoleEventCallback; //used to detect terminiation
@@ -47,6 +54,31 @@ namespace Sentro
                 CleanUpSentro();
             }
 
+        }
+
+        private static bool ConfigureRegistry()
+        {
+            var regestryPath = @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters";
+            var IPEnableRouter = "IPEnableRouter";
+            var EnableICMPRedirect = "EnableICMPRedirect";
+            var tcpIpParameters = Registry.LocalMachine.OpenSubKey(regestryPath, true);                   
+            var needReboot = false;
+            if (tcpIpParameters != null)
+            {                
+                if ((int) tcpIpParameters.GetValue(IPEnableRouter) == 0)
+                {
+                    tcpIpParameters.SetValue(IPEnableRouter, 1, RegistryValueKind.DWord);
+                    needReboot = true;
+                }
+                if ((int) tcpIpParameters.GetValue(EnableICMPRedirect) == 1)
+                {
+                    tcpIpParameters.SetValue(EnableICMPRedirect, 0, RegistryValueKind.DWord);
+                    needReboot = true;
+                }
+
+                tcpIpParameters.Close();
+            }            
+            return needReboot;
         }
 
         #region Clean up before Sentro termination

@@ -153,6 +153,7 @@ namespace Sentro.Traffic
             }
         }
 
+        private uint lastAckWasGoingToServer, lastSeqWasGoingToServer;
         private void Connected(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- connected -----");
@@ -188,6 +189,11 @@ namespace Sentro.Traffic
                     else
                     {
                         fileLogger.Debug(Tag, "request is not cached");
+                        if (!SentAnyCache)
+                        {
+                            lastAckWasGoingToServer = rawPacket.AckNumber;
+                            lastSeqWasGoingToServer = rawPacket.SeqNumber;
+                        }
                         WaitResponse(rawPacket);
                     }
                 }
@@ -355,6 +361,7 @@ namespace Sentro.Traffic
         private SemaphoreSlim seqSemaphore;
         private uint lastAck, lastAckRepetetion;
         private Dictionary<uint, Packet> cachedSentPackets;
+        private bool SentAnyCache;
         private void SendingCache(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- sending cache -----");
@@ -370,6 +377,7 @@ namespace Sentro.Traffic
                 firstCachedPacketToSend = 8;
                 seqSemaphore = new SemaphoreSlim(1, 1);
                 cachedSentPackets = new Dictionary<uint, Packet>();
+                SentAnyCache = true;
             }
 
             if (IsIn(rawPacket))
@@ -578,6 +586,16 @@ namespace Sentro.Traffic
             //END OF TCP 
 
             //END OF 40 Bytes headers 
+        }
+
+        private void ClearChecksums(Packet packet)
+        {
+            //ip checksum
+            packet.RawPacket[10] = 0;
+            packet.RawPacket[11] = 0;
+            //tcp checksum
+            packet.RawPacket[36] = 0;
+            packet.RawPacket[37] = 0;
         }
 
         private void SetChecksum(Packet rawPacket)
