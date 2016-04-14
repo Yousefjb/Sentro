@@ -43,6 +43,15 @@ namespace Sentro.Utilities
             //writelock.Release();
         }
 
+        public void Debug(string message)
+        {
+            writelock.Wait();            
+            var bytes = Encoding.ASCII.GetBytes($"{message}\n");
+            _file.Write(bytes, 0, bytes.Length);
+            _file.Flush();
+            writelock.Release();
+        }
+
         public void Info(string tag, string message)
         {
             //writelock.Wait();

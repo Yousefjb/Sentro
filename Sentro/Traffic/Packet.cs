@@ -48,17 +48,41 @@ namespace Sentro.Traffic
 
         public ushort DestPort =>
             (ushort)
-                (((0 | _packet[_tcpStart + 2]) << 8) | _packet[_tcpStart + 3]);
-      
-        public uint AckNumber =>
-            (uint)
-                (((((((0 | _packet[_tcpStart + 8]) << 8) | _packet[_tcpStart + 9]) << 8) | _packet[_tcpStart + 10]) <<
-                  8) | _packet[_tcpStart + 11]);
+                (((0 | _packet[_tcpStart + 2]) << 8) | _packet[_tcpStart + 3]);           
 
-        public uint SeqNumber =>
-            (uint)
-                (((((((0 | _packet[_tcpStart + 4]) << 8) | _packet[_tcpStart + 5]) << 8) | _packet[_tcpStart + 6]) <<
-                  8) | _packet[_tcpStart + 7]);
+        public uint AckNumber
+        {
+            get
+            {
+                return (uint)
+                    (((((((0 | _packet[_tcpStart + 8]) << 8) | _packet[_tcpStart + 9]) << 8) | _packet[_tcpStart + 10]) <<
+                      8) | _packet[_tcpStart + 11]);
+            }
+            set
+            {
+                _packet[_tcpStart + 8] = (byte) (value >> 24);
+                _packet[_tcpStart + 9] = (byte) ((value >> 16) & 0xff);
+                _packet[_tcpStart + 10] = (byte) ((value >> 8) & 0xff);
+                _packet[_tcpStart + 11] = (byte) (value & 0xff);
+            }
+        }
+
+        public uint SeqNumber
+        {
+            get
+            {
+                return (uint)
+                    (((((((0 | _packet[_tcpStart + 4]) << 8) | _packet[_tcpStart + 5]) << 8) | _packet[_tcpStart + 6]) <<
+                      8) | _packet[_tcpStart + 7]);
+            }
+            set
+            {
+                _packet[_tcpStart + 4] = (byte) (value >> 24);
+                _packet[_tcpStart + 5] = (byte) ((value >> 16) & 0xff);
+                _packet[_tcpStart + 6] = (byte) ((value >> 8) & 0xff);
+                _packet[_tcpStart + 7] = (byte) (value & 0xff);
+            }
+        }
 
         public ushort WindowSize =>
             (ushort)
@@ -66,9 +90,7 @@ namespace Sentro.Traffic
 
         public ushort Id =>
             (ushort)
-                (((0 | _packet[4]) << 8) | _packet[5]);
-
-        public int TcpStart => _tcpStart;
+                (((0 | _packet[4]) << 8) | _packet[5]);        
 
         public byte WindowScale
         {
@@ -159,6 +181,14 @@ namespace Sentro.Traffic
                     requestUri = IsHttpGet() ? uri : "";
                 return requestUri;
             }
-        }      
+        }
+
+        public void ClearChecksums()
+        {
+            //ip checksum
+            _packet[10] = _packet[11] = 0;
+            //tcp checksum
+            _packet[_tcpStart + 16] = _packet[_tcpStart + 17] = 0;
+        }
     }
 }
