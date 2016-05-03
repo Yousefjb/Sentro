@@ -126,6 +126,9 @@ namespace Sentro.Traffic
                 case State.Transferring:
                     Transferring(rawPacket);
                     break;
+                case State.MISSEDPACKETS:
+                    sendMissedPacket(rawPacket);
+                    break;
             }
         }
 
@@ -251,7 +254,8 @@ namespace Sentro.Traffic
                 fileLogger.Debug(Tag, "init http response for cache");
                 cachingFileStream = CacheManager.OpenFileWriteStream(hashOfLastHttpGet);
                 queuedPackets = new Dictionary<uint, Packet>();
-                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;                
+                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;  
+                Console.WriteLine(responseContentLength);              
                 firstPacketToCache = true;
                 cachedContentLength = -ExcludeHeadersLength(rawPacket);
             }
@@ -342,7 +346,7 @@ namespace Sentro.Traffic
         private uint lastAck, lastAckRepetetion;
         private ConcurrentDictionary<uint, Packet> cachedSentPackets;
         private bool allowSendCache = true;
-
+        private int sentCacheSize = 0;
         private void SendingCache(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- sending cache -----");
@@ -367,18 +371,7 @@ namespace Sentro.Traffic
                 return;
             }
 
-            if (lastAck == rawPacket.AckNumber)
-            {
-                lastAckRepetetion++;
-                if (lastAckRepetetion >= 3)
-                    if (cachedSentPackets.ContainsKey(lastAck))
-                        SendAsync(cachedSentPackets[lastAck]);
-            }
-            else
-            {
-                lastAck = rawPacket.AckNumber;
-                lastAckRepetetion = 0;
-            }
+            sendMissedPacket(rawPacket);
 
             if (rawPacket.FinAck)
             {
@@ -401,6 +394,9 @@ namespace Sentro.Traffic
             else limitWindowSize = 2000;
 
             count = calculatedWinSize/limitWindowSize;
+                        
+            //count = count > 15 ? 15 : count;
+
             fileLogger.Debug(Tag, $"will send {count} packets");
             if (calculatedWinSize < limitWindowSize)
             {
@@ -415,10 +411,8 @@ namespace Sentro.Traffic
                     fileLogger.Debug(Tag, "in parallel");
                     if (cacheResponse != null)
                     {
-                        seqSemaphore?.Wait();
-                        fileLogger.Debug(Tag, "in parallel after wait");
-                        var nextPacket = cacheResponse?.NextPacket();
-                        fileLogger.Debug(Tag, "in parallel after wait after next packet");
+                        seqSemaphore?.Wait();                        
+                        var nextPacket = cacheResponse?.NextPacket();                        
                         if (nextPacket != null)
                         {
                             fileLogger.Debug(Tag, "next packet not null");
@@ -430,14 +424,18 @@ namespace Sentro.Traffic
                             seqSemaphore?.Release();
                             cachedSentPackets.TryAdd(nextPacket.SeqNumber, nextPacket);
                             firstCachedPacketToSend = 0;
+                            sentCacheSize++;
                         }
                         else
                         {
                             fileLogger.Debug(Tag, "close cache file");
                             cacheResponse?.Close();
-                            cacheResponse = null;
-                            allowSendCache = false;
-                            CurrentState = State.VOIDSTATE;
+                            if (sentCacheSize > 0)
+                            {
+                                CurrentState = State.MISSEDPACKETS;
+                                cacheResponse = null;
+                            }                                                        
+                            
                             seqSemaphore?.Release();
                             loopstate.Stop();
                         }
@@ -452,6 +450,35 @@ namespace Sentro.Traffic
             catch (Exception e)
             {
                 fileLogger.Debug(Tag, e.ToString());
+            }
+        }
+
+        private void sendMissedPacket(Packet rawPacket)
+        {
+            if (!rawPacket.Ack)
+            {
+                SendAsync(GetRstPacket(rawPacket));
+                CurrentState = State.Closed;
+            }
+
+            if (lastAck == rawPacket.AckNumber)
+            {
+                lastAckRepetetion++;
+                Console.WriteLine("missed count : "+lastAckRepetetion);
+                if (lastAckRepetetion > 1)
+                    if (cachedSentPackets.ContainsKey(lastAck))
+                    {
+                        SendAsync(cachedSentPackets[lastAck]);
+                    }
+                    else
+                    {
+                        SendingCache(savedRequestPacket);
+                    }
+            }
+            else
+            {
+                lastAck = rawPacket.AckNumber;
+                lastAckRepetetion = 0;
             }
         }
 
@@ -674,7 +701,7 @@ namespace Sentro.Traffic
             Caching = 1 << 3,
             SendingCache = 1 << 4,
             WaitResponse = 1 << 5,
-            VOIDSTATE = 1 << 6
+            MISSEDPACKETS = 1 << 6
         }
     }
 }
