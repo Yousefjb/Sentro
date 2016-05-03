@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using Sentro.Traffic;
@@ -56,12 +57,22 @@ namespace Sentro.Cache
         */
         private Packet HeadersPacket()
         {
-            var firstByte = _fileStream.ReadByte();
-            var secondByte = _fileStream.ReadByte();
-            var headersLength = (firstByte << 8) | secondByte;
-            byte[] headersPacket = new byte[1500];
-            _fileStream.Read(headersPacket, 40, headersLength);
-            return new Packet(headersPacket, (uint) headersLength + 40);
+            try
+            {
+                var firstByte = _fileStream.ReadByte();
+                var secondByte = _fileStream.ReadByte();
+                var headersLength = (secondByte << 8) | firstByte;
+
+                fileLogger.Debug("cache resp", $"{headersLength}");
+                byte[] headersPacket = new byte[1500];
+                _fileStream.Read(headersPacket, 40, headersLength);
+                return new Packet(headersPacket, (uint) headersLength + 40);
+            }
+            catch (Exception e)
+            {
+                fileLogger.Debug("cache resp",e.ToString());
+                return null;                
+            }
         }
 
         /*
@@ -70,17 +81,27 @@ namespace Sentro.Cache
         private IEnumerator<Packet> enumerator;      
         public Packet NextPacket()
         {
-            nextPacketSem.Wait();
-            if (enumerator == null)
-                enumerator = NetworkPackets.GetEnumerator();
-            Packet nextPacket = null;
-            if (enumerator.MoveNext())
+            try
             {
-                fileLogger.Debug("netowrkPacket", "i found next packet");         
-                nextPacket = enumerator.Current;
+                fileLogger.Debug("cache resp", "in next packet");
+                nextPacketSem.Wait();
+                fileLogger.Debug("cache resp", "in next packet after wait");
+                if (enumerator == null)
+                    enumerator = NetworkPackets.GetEnumerator();
+                Packet nextPacket = null;
+                if (enumerator.MoveNext())
+                {
+                    fileLogger.Debug("netowrkPacket", "i found next packet");
+                    nextPacket = enumerator.Current;
+                }
+                nextPacketSem.Release();
+                return nextPacket;
             }
-            nextPacketSem.Release();        
-            return nextPacket;
+            catch (Exception e)
+            {
+                fileLogger.Debug("cache resp",e.ToString());
+                return null;
+            }
         }
       
     }

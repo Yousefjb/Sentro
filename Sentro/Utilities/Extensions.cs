@@ -86,9 +86,12 @@ namespace Sentro.Utilities
         public static void AddOrReplace(this ConcurrentDictionary<uint, Packet> dictionary,uint key, Packet packet)
         {
             if (dictionary.ContainsKey(key))
-                dictionary[key] = packet;
-            else
-                dictionary.TryAdd(key, packet);
+            {
+                Packet p;
+                dictionary.TryRemove(key, out p);
+            }
+
+            dictionary.TryAdd(key, packet);
         }
 
         public static string AsString(this uint ip)

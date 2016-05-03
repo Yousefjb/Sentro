@@ -21,7 +21,7 @@ namespace Sentro.Traffic
             _length = packetLength;
             _tcpStart = (rawPacket[0] & 15)*4;
             _tcpHeaderLength = (rawPacket[_tcpStart + 12] >> 4)*4;
-        }                                                    
+        }       
 
         public byte[] RawPacket => _packet;
         public uint RawPacketLength => _length;                       
@@ -120,14 +120,18 @@ namespace Sentro.Traffic
                 
         public bool Syn => _packet[_tcpStart + 13] == 2 || _packet[_tcpStart + 13] == 10;     
 
-        public bool Rst => _packet[_tcpStart + 13] == 4 || _packet[_tcpStart + 13] == 12;     
+        public bool Rst => _packet[_tcpStart + 13] == 4 || _packet[_tcpStart + 13] == 12;
+
+        public bool PshAndAck => _packet[_tcpStart + 13] == 24;
 
         public bool Ack => _packet[_tcpStart + 13] == 16 || _packet[_tcpStart + 13] == 24;
-       
+        
+
         public bool SynAck => _packet[_tcpStart + 13] == 18 || _packet[_tcpStart + 13] == 26;
                
         public bool FinAck => _packet[_tcpStart + 13] == 17 || _packet[_tcpStart + 13] == 25;
-     
+
+        public int TcpStart => _tcpStart;
 
         private string uri = "";
 
@@ -168,6 +172,14 @@ namespace Sentro.Traffic
                 var result = Regex.Match(ascii, CommonRegex.HttpContentLengthMatch,
                     RegexOptions.IgnoreCase | RegexOptions.Multiline);
                 _httpResponseHeaders.ContentLength = result.Success ? Convert.ToInt32(result.Groups[1].Value) : 0;
+
+                result = Regex.Match(ascii, CommonRegex.HttpContentTypeMatch,
+                    RegexOptions.IgnoreCase | RegexOptions.Multiline);
+                _httpResponseHeaders.ContentType = result.Success ? result.Groups[1].Value : "";
+
+                result = Regex.Match(ascii, CommonRegex.HttpStatusCodeMatch,
+                   RegexOptions.IgnoreCase | RegexOptions.Multiline);
+                _httpResponseHeaders.StatusCode = result.Success ? int.Parse(result.Groups["code"].Value) : 200;
                 return _httpResponseHeaders;
             }
         }
@@ -190,5 +202,10 @@ namespace Sentro.Traffic
             //tcp checksum
             _packet[_tcpStart + 16] = _packet[_tcpStart + 17] = 0;
         }
+
+        public override string ToString()
+        {            
+            return Encoding.ASCII.GetString(_packet);            
+        }        
     }
 }

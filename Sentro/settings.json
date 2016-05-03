@@ -1,6 +1,6 @@
 ﻿{
   "ArpSpoofer": {
-    "Frequency": "15000"
+    "Frequency": "5000"
   },
   
   "SettingsReloadRate": "6000000",

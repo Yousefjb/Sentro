@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
@@ -11,23 +14,22 @@ using Timer = System.Timers.Timer;
 
 // ReSharper disable InconsistentNaming
 namespace Sentro.Traffic
-{ 
+{
     class Connection
     {
         public string Tag = "Connection";
 
-        private State CurrentState;        
+        private State CurrentState;
         private readonly Diversion diversion;
-        private readonly FileLogger fileLogger;        
+        private readonly FileLogger fileLogger;
         private readonly Timer timeoutTimer;
 
         private int hashcode;
-        private uint _sentLength;        
+        private uint _sentLength;
         private string hashOfLastHttpGet = "";
-        private uint bytesSentToUser, bytesRecivedFromUser;
 
         public int HashCode
-        {            
+        {
             set
             {
                 hashcode = value;
@@ -37,24 +39,25 @@ namespace Sentro.Traffic
 
         private SemaphoreSlim IOSemaphore;
         private Address address;
-        public Connection(Diversion diversion,Address address)
+        public Connection(Diversion diversion, Address address)
         {
             this.diversion = diversion;
-            CurrentState = State.Closed;            
+            CurrentState = State.Closed;
             timeoutTimer = new Timer();
             timeoutTimer.Elapsed += OnTimeout;
-            timeoutTimer.Interval = 30*1000;
+            timeoutTimer.Interval = 30 * 1000;
             timeoutTimer.Enabled = true;
             fileLogger = FileLogger.GetInstance();
             fileLogger.Debug(Tag, "new connection");
             this.address = address;
-            IOSemaphore = new SemaphoreSlim(1,1);
+            IOSemaphore = new SemaphoreSlim(1, 1);
         }
 
-        private void OnTimeout(object source,ElapsedEventArgs e)
-        {                        
-            fileLogger.Debug(Tag,"timeout");
+        private void OnTimeout(object source, ElapsedEventArgs e)
+        {
+            fileLogger.Debug(Tag, "timeout");
             CurrentState = State.Closed;
+            timeoutTimer.Stop();
             ClearResources();
         }
 
@@ -64,17 +67,18 @@ namespace Sentro.Traffic
             {
                 if (cachingFileStream != null)
                 {
-                    fileLogger.Debug(Tag,"caching file stream not null");
+                    fileLogger.Debug(Tag, "caching file stream not null");
                     try
                     {
                         if (cachingFileStream != Stream.Null)
-                        {                            
+                        {
                             cachingFileStream.Dispose();
                             cachingFileStream = null;
                         }
                     }
                     catch (Exception e)
-                    {                        
+                    {
+
                     }
                 }
                 Connection c;
@@ -82,12 +86,12 @@ namespace Sentro.Traffic
             }
             catch (Exception e)
             {
-                fileLogger.Error(Tag,e.ToString());
+                fileLogger.Error(Tag, e.ToString());
             }
 
             fileLogger.Debug(Tag, "cleared resources");
         }
-  
+
         private byte _windowScale = 5;
 
         public void Add(Packet rawPacket, Address addressLoop)
@@ -96,7 +100,7 @@ namespace Sentro.Traffic
             if (rawPacket.Syn)
             {
                 _windowScale = rawPacket.WindowScale;
-                _windowScale = _windowScale == 0 ? (byte) 5 : _windowScale;
+                _windowScale = _windowScale == 0 ? (byte)5 : _windowScale;
             }
 
             timeoutTimer.Stop();
@@ -122,9 +126,6 @@ namespace Sentro.Traffic
                 case State.Transferring:
                     Transferring(rawPacket);
                     break;
-                default:
-                    SendAsync(rawPacket);
-                    break;
             }
         }
 
@@ -132,7 +133,6 @@ namespace Sentro.Traffic
         {
             fileLogger.Debug(Tag, "----- closed -----");
             CurrentState = State.Closed;
-            SentAnyCache = false;
             if (rawPacket.Ack)
             {
                 if (IsOut(rawPacket))
@@ -148,24 +148,16 @@ namespace Sentro.Traffic
             }
             else
             {
-                fileLogger.Debug(Tag, "send not ack");            
-                SyncroniseAckAndSeqNumbers(rawPacket);    
+                fileLogger.Debug(Tag, "send not ack");
                 SendAsync(rawPacket);
             }
         }
-                
+        
         private void Connected(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- connected -----");
             CurrentState = State.Connected;
-            if (rawPacket.Fin || rawPacket.FinAck || rawPacket.Rst)
-            {
-                fileLogger.Debug(Tag, "fin | rst change to closes and send");
-                CurrentState = State.Closed;
-                SyncroniseAckAndSeqNumbers(rawPacket);
-                SendAsync(rawPacket);
-            }
-            else if (IsOut(rawPacket) && rawPacket.Ack && (rawPacket.DataLength > 1))
+            if (IsOut(rawPacket) && rawPacket.Ack && (rawPacket.DataLength > 1))
             {
                 if (!rawPacket.IsHttpGet())
                 {
@@ -181,25 +173,21 @@ namespace Sentro.Traffic
                     {
                         fileLogger.Debug(Tag, "request is cached");
                         var ackpacket = GetAckPacket(rawPacket);
-                        SetChecksum(ackpacket);
-                        ackpacket = AddEthernetPadding(ackpacket);
+                        SetChecksum(ackpacket);                        
                         SendAsync(ackpacket);
                         fileLogger.Debug(Tag, "send request recived ack with padding");
                         SendingCache(rawPacket);
                     }
                     else
-                    {                      
-                        fileLogger.Debug(Tag, "request is not cached");                       
+                    {
+                        fileLogger.Debug(Tag, "request is not cached");
                         WaitResponse(rawPacket);
                     }
                 }
             }
             else
             {
-                if(SentAnyCache)
-                    return;
                 fileLogger.Debug(Tag, "send packet [ in | not ack | 0 length");
-                SyncroniseAckAndSeqNumbers(rawPacket);
                 SendAsync(rawPacket);
             }
         }
@@ -215,9 +203,8 @@ namespace Sentro.Traffic
             }
 
             fileLogger.Debug(Tag, "send");
-            SyncroniseAckAndSeqNumbers(rawPacket);
             SendAsync(rawPacket);
-        }             
+        }
 
         private void WaitResponse(Packet rawPacket)
         {
@@ -227,7 +214,6 @@ namespace Sentro.Traffic
             {
                 fileLogger.Debug(Tag, "send fin | rst");
                 CurrentState = State.Closed;
-                SyncroniseAckAndSeqNumbers(rawPacket);
                 SendAsync(rawPacket);
             }
             else if (IsIn(rawPacket) && rawPacket.Ack && (rawPacket.DataLength > 1))
@@ -246,65 +232,37 @@ namespace Sentro.Traffic
             else
             {
                 fileLogger.Debug(Tag, "send out | not ack | 0 length");
-                SyncroniseAckAndSeqNumbers(rawPacket);
                 SendAsync(rawPacket);
             }
         }
-
+           
         private FileStream cachingFileStream;
-        private ConcurrentDictionary<uint, Packet> queuedPackets;        
-        private int responseContentLength;
-        private uint expectedSequence;
-        private int cachedContentLength;        
-        private bool firstPacketToCache;   
+        private Dictionary<uint, Packet> queuedPackets;
+        private int responseContentLength;        
+        private int cachedContentLength;
+        private bool firstPacketToCache;      
+
         private void Caching(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- caching -----");
             CurrentState = State.Caching;
-
             if (cachingFileStream == null)
             {
                 fileLogger.Debug(Tag, "init http response for cache");
                 cachingFileStream = CacheManager.OpenFileWriteStream(hashOfLastHttpGet);
-                queuedPackets = new ConcurrentDictionary<uint, Packet>();
-                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;
-                expectedSequence = rawPacket.SeqNumber;
+                queuedPackets = new Dictionary<uint, Packet>();
+                responseContentLength = rawPacket.HttpResponseHeaders.ContentLength;                
                 firstPacketToCache = true;
+                cachedContentLength = -ExcludeHeadersLength(rawPacket);
             }
 
-            SyncroniseAckAndSeqNumbers(rawPacket);
             SendAsync(rawPacket);
             if (IsOut(rawPacket))
-            {
-                if (rawPacket.DataLength != 0)
-                {
-                    FreeCurrentCacheQueue();
-                    ClearCurrentCachingState();
-                    Connected(rawPacket);                    
-                }
                 return;
-            }
 
             if (rawPacket.DataLength > 0)
             {
-                var packetSeq = rawPacket.SeqNumber;
-                if (packetSeq == expectedSequence || queuedPackets.ContainsKey(expectedSequence))
-                {
-                    if (packetSeq != expectedSequence)
-                    {
-                        rawPacket = queuedPackets[expectedSequence];
-                        Packet emptyPacket;
-                        queuedPackets.TryRemove(expectedSequence, out emptyPacket);
-                    }
-                    cachePacket(rawPacket, firstPacketToCache);
-                    firstPacketToCache = false;
-                }
-                else
-                {
-                    fileLogger.Debug(Tag, "queued packet");
-                    queuedPackets.AddOrReplace(packetSeq, rawPacket);
-                    Console.WriteLine("pq {0}", queuedPackets.Count);
-                }
+                queuedPackets[rawPacket.SeqNumber] = rawPacket;
             }
             else
             {
@@ -314,11 +272,18 @@ namespace Sentro.Traffic
             }
         }
 
+        private int ExcludeHeadersLength(Packet rawPacket)
+        {
+            var shit = Encoding.ASCII.GetString(rawPacket.RawPacket);
+            var i = shit.IndexOf("\r\n\r\n", StringComparison.InvariantCulture);
+            i += 4;
+            return Encoding.ASCII.GetBytes(shit.ToCharArray(), 0, i).Length - rawPacket.DataStart;
+        }
+
         private void ClearCurrentCachingState()
         {
             if (cachingFileStream != null)
-            {
-                fileLogger.Debug(Tag, "dispose cache file and clear queue");
+            {                
                 cachingFileStream.Flush();
                 cachingFileStream.Dispose();
                 cachingFileStream = null;
@@ -326,66 +291,63 @@ namespace Sentro.Traffic
                 queuedPackets = null;
             }
 
-            if (cachedContentLength < responseContentLength)
-            {
-                fileLogger.Debug(Tag, $"incomple {hashOfLastHttpGet}, delete the cache");
+            if (cachedContentLength != responseContentLength)
+            {                                
                 Console.WriteLine("deleting {0}", hashOfLastHttpGet);
                 CacheManager.Delete(hashOfLastHttpGet);
             }
-
+           
             hashOfLastHttpGet = "";
-            responseContentLength = cachedContentLength = 0;
-            expectedSequence = 0;
-
         }
 
         private void FreeCurrentCacheQueue()
         {
-            if (cachedContentLength != responseContentLength)
-            {
-                fileLogger.Debug(Tag, "incomplete cache,looking in queue");
-                while (queuedPackets.ContainsKey(expectedSequence))
-                {
-                    var rawPacket = queuedPackets[expectedSequence];
-                    cachePacket(rawPacket, firstPacketToCache);
-                    firstPacketToCache = false;
-                }
-                fileLogger.Debug(Tag, "queue doesn't have expepected seq");
-            }
-        }
+            var keys = queuedPackets.Select(x => x.Key).OrderBy(u => u);
+            HashSet<uint> packetsSeqSet = new HashSet<uint>();
+            foreach (var key in keys)
+            {                
+                var rawPacket = queuedPackets[key];                
+                if(packetsSeqSet.Contains(rawPacket.SeqNumber))
+                    continue;
 
-        private void cachePacket(Packet rawPacket,bool writeLengthFirst)
+                packetsSeqSet.Add(rawPacket.SeqNumber);
+                cachePacket(rawPacket, firstPacketToCache);
+                queuedPackets.Remove(key);
+                firstPacketToCache = false;
+            }            
+        } 
+
+        private void cachePacket(Packet rawPacket, bool writeLengthFirst)
         {
             IOSemaphore.Wait();
             var packetLength = rawPacket.DataLength;
-            fileLogger.Debug(Tag, $"disk write {packetLength} bytes");
-            expectedSequence += (uint) packetLength;
+            fileLogger.Debug(Tag, $"disk write {packetLength} bytes");            
             cachedContentLength += packetLength;
             if (writeLengthFirst)
             {
-                byte[] bytes = {(byte) (rawPacket.DataLength >> 8), (byte) rawPacket.DataLength};
+                byte[] bytes = { (byte)(rawPacket.DataLength), (byte)(rawPacket.DataLength << 8) };
                 cachingFileStream.Write(bytes, 0, 2);
             }
             cachingFileStream.Write(rawPacket.RawPacket, rawPacket.DataStart, packetLength);
             cachingFileStream.Flush();
             IOSemaphore.Release();
         }
-
+               
         private CacheResponse cacheResponse;
         private ushort random;
-        private uint seq, ack,limitWindowSize;
+        private uint seq, ack, limitWindowSize;
         private Packet savedRequestPacket;
-        private byte firstCachedPacketToSend;                
+        private byte firstCachedPacketToSend;
         private SemaphoreSlim seqSemaphore;
         private uint lastAck, lastAckRepetetion;
         private ConcurrentDictionary<uint, Packet> cachedSentPackets;
-        private bool SentAnyCache;
-        private ushort counter=1;
+        private bool allowSendCache = true;
+
         private void SendingCache(Packet rawPacket)
         {
             fileLogger.Debug(Tag, "----- sending cache -----");
             CurrentState = State.SendingCache;
-            if (cacheResponse == null)
+            if (cacheResponse == null && allowSendCache)
             {
                 fileLogger.Debug(Tag, "get cache response from disk");
                 cacheResponse = CacheManager.Get(hashOfLastHttpGet);
@@ -396,18 +358,15 @@ namespace Sentro.Traffic
                 firstCachedPacketToSend = 8;
                 seqSemaphore = new SemaphoreSlim(1, 1);
                 cachedSentPackets = new ConcurrentDictionary<uint, Packet>();
-                bytesRecivedFromUser += (uint) rawPacket.DataLength;
-                fileLogger.Debug($"{Tag} bytesRecivedFromUser {bytesRecivedFromUser}");
-                SentAnyCache = true;
-
             }
 
             if (IsIn(rawPacket))
             {
                 fileLogger.Debug(Tag, "dropped in packet");
+                SendAsync(GetRstPacket(rawPacket));
                 return;
             }
-            
+
             if (lastAck == rawPacket.AckNumber)
             {
                 lastAckRepetetion++;
@@ -421,8 +380,15 @@ namespace Sentro.Traffic
                 lastAckRepetetion = 0;
             }
 
-            if (rawPacket.AckNumber != seq)
-            {               
+            if (rawPacket.FinAck)
+            {
+                SendAsync(GetAckPacket(rawPacket));
+                return;
+                //CurrentState = State.Closed;
+            }
+
+            if (rawPacket.AckNumber != seq || (rawPacket.AckNumber == seq && cacheResponse == null))
+            {
                 return;
             }
 
@@ -434,8 +400,8 @@ namespace Sentro.Traffic
                 limitWindowSize = 3000;
             else limitWindowSize = 2000;
 
-            count = calculatedWinSize/limitWindowSize;            
-            fileLogger.Debug(Tag, $"can send up to {count} packets");
+            count = calculatedWinSize/limitWindowSize;
+            fileLogger.Debug(Tag, $"will send {count} packets");
             if (calculatedWinSize < limitWindowSize)
             {
                 fileLogger.Debug(Tag, "window size is low,dont send");
@@ -443,22 +409,25 @@ namespace Sentro.Traffic
             }
             try
             {
-                SendKeepAlive(savedRequestPacket, counter++);
+                fileLogger.Debug(Tag, $"count: {count}");                
                 Parallel.For(0, count, (i, loopstate) =>
-                {
+                {                    
+                    fileLogger.Debug(Tag, "in parallel");
                     if (cacheResponse != null)
                     {
                         seqSemaphore?.Wait();
+                        fileLogger.Debug(Tag, "in parallel after wait");
                         var nextPacket = cacheResponse?.NextPacket();
+                        fileLogger.Debug(Tag, "in parallel after wait after next packet");
                         if (nextPacket != null)
                         {
-                            bytesSentToUser += (uint)nextPacket.DataLength;
-                            fileLogger.Debug($"{Tag} bytesSent {bytesSentToUser}");
-                            SetFakeHeaders(nextPacket, savedRequestPacket, random++, seq, ack, firstCachedPacketToSend);
+                            fileLogger.Debug(Tag, "next packet not null");
+                            SetFakeHeaders(nextPacket, savedRequestPacket, random++, seq, ack,
+                                firstCachedPacketToSend);
                             seq += nextPacket.RawPacketLength - 40;
-                            seqSemaphore?.Release();
                             SetChecksum(nextPacket, 0);
                             SendAsync(nextPacket);
+                            seqSemaphore?.Release();
                             cachedSentPackets.TryAdd(nextPacket.SeqNumber, nextPacket);
                             firstCachedPacketToSend = 0;
                         }
@@ -467,164 +436,49 @@ namespace Sentro.Traffic
                             fileLogger.Debug(Tag, "close cache file");
                             cacheResponse?.Close();
                             cacheResponse = null;
-                            CurrentState = State.Closed;
+                            allowSendCache = false;
+                            CurrentState = State.VOIDSTATE;
                             seqSemaphore?.Release();
                             loopstate.Stop();
                         }
                     }
-                });
+                    else
+                    {
+                        loopstate.Stop();
+                        fileLogger.Debug(Tag, "cache response null");
+                    }                    
+                });                
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                fileLogger.Error(Tag, ex.ToString());
+                fileLogger.Debug(Tag, e.ToString());
             }
         }
 
-        private Packet GetAckPacket(Packet request)
+        private Packet GetAckPacket(Packet request,byte flags = 0)
         {
             var ackPacket = new Packet(new byte[40], 40);
             ushort fakeId = request.Id;
             fakeId++;
             var fakeSeq = request.AckNumber;
-            var fakeAck = request.SeqNumber + (uint) request.DataLength;
-            SetFakeHeaders(ackPacket, request, fakeId, fakeSeq, fakeAck, 0);
+            var fakeAck = request.SeqNumber + (uint)request.DataLength;
+            SetFakeHeaders(ackPacket, request, fakeId, fakeSeq, fakeAck, flags);
             return ackPacket;
-        }       
-
-        private Packet AddEthernetPadding(Packet rawPacket)
-        {
-            int zerosCount = 60 - (int)rawPacket.RawPacketLength - 14;
-            var bytes = new byte[rawPacket.RawPacketLength + zerosCount];
-            for (int i = zerosCount; i < rawPacket.RawPacketLength; i++)
-                bytes[i] = rawPacket.RawPacket[i];
-            return new Packet(bytes, (uint) bytes.Length);
         }
 
-        private void SendKeepAlive(Packet request, ushort id)
+        private Packet GetRstPacket(Packet anyPacket)
         {
-            var keepalive = new Packet(new byte[41], 41);
-            var fakeId = (ushort) (request.Id + id);
-            SetKeepAliveFakeHeaders(keepalive, request, fakeId, request.SeqNumber, request.AckNumber, 0);
-            SetChecksum(keepalive);
-            keepalive = AddEthernetPadding(keepalive);
-            SendAsync(keepalive);
-            fileLogger.Debug($"{Tag} sent keep alive");
+            var rstPacket = new Packet(new byte[40], 40);
+            ushort fakeId = anyPacket.Id;
+            fakeId++;
+            var fakeSeq = anyPacket.AckNumber;
+            var fakeAck = anyPacket.SeqNumber + (uint)anyPacket.DataLength;
+            SetFakeHeaders(rstPacket, anyPacket, fakeId, fakeSeq, fakeAck, 4);
+            SetChecksum(rstPacket,0);
+            return rstPacket;
         }
-
+              
         private void SetFakeHeaders(Packet response, Packet request, ushort fakeRandom, uint fakeSeq, uint fakeAck, byte Flag)
-        {
-            //ALL WINDOWS versions uses Littile-Endian so reverse is done for Network Byte Order
-
-            //response.IpHeader.Version = 4;
-            //response.IpHeader.HeaderLength = 5;
-            //0100 0101 -> 69
-            response.RawPacket[0] = 69;
-
-            //Diferentiated Services
-            //Expidated Forwarding, Not-ECN
-            //1011 1000 -> 184
-            response.RawPacket[1] = 184;
-
-            //Total Length (2 bytes)
-            //reverse byte order
-            var length = BitConverter.GetBytes((ushort) response.RawPacketLength);
-            response.RawPacket[2] = length[1];
-            response.RawPacket[3] = length[0];
-
-            //identification
-            //reverse 2 bytes
-            var id = BitConverter.GetBytes(fakeRandom);
-            response.RawPacket[4] = id[1];
-            response.RawPacket[5] = id[0];
-
-            //Flags and Fragment offset makes 2 bytes and set to 0
-            response.RawPacket[6] = 0;
-            response.RawPacket[7] = 0;
-
-            //TTL set to 128 as constant default
-            response.RawPacket[8] = 128;
-
-            //Protocol set to TCP = 6
-            response.RawPacket[9] = 6;
-
-            //IP Header Checksum 2 bytes are calculated out of this function
-            //response.RawPacket[10] = 0;
-            //response.RawPacket[11] = 0;
-
-            //Source Ip  4 bytes
-            //set to request dest ip
-            response.RawPacket[12] = request.RawPacket[16];
-            response.RawPacket[13] = request.RawPacket[17];
-            response.RawPacket[14] = request.RawPacket[18];
-            response.RawPacket[15] = request.RawPacket[19];
-
-            //Destination Ip  4 bytes     
-            //set to request src ip                   
-            response.RawPacket[16] = request.RawPacket[12];
-            response.RawPacket[17] = request.RawPacket[13];
-            response.RawPacket[18] = request.RawPacket[14];
-            response.RawPacket[19] = request.RawPacket[15];
-
-            // END OF IP HEADERS
-
-            var tcpStart = (request.RawPacket[0] & 15)*4;
-
-            //Source Port 2 bytes                        
-            //set to request dest port
-            response.RawPacket[20] = request.RawPacket[tcpStart + 2];
-            response.RawPacket[21] = request.RawPacket[tcpStart + 3];
-
-            //Destination Port 2 bytes
-            //set to request src port            
-            response.RawPacket[22] = request.RawPacket[tcpStart + 0];
-            response.RawPacket[23] = request.RawPacket[tcpStart + 1];
-
-            //Sequence number 4 bytes
-            //reverse
-            var seqBytes = BitConverter.GetBytes(fakeSeq);
-            response.RawPacket[24] = seqBytes[3];
-            response.RawPacket[25] = seqBytes[2];
-            response.RawPacket[26] = seqBytes[1];
-            response.RawPacket[27] = seqBytes[0];
-
-            //Acknoldgment number 4 bytes
-            //reverse
-            var ackBytes = BitConverter.GetBytes(fakeAck);
-            response.RawPacket[28] = ackBytes[3];
-            response.RawPacket[29] = ackBytes[2];
-            response.RawPacket[30] = ackBytes[1];
-            response.RawPacket[31] = ackBytes[0];
-
-            //Data offset , reserved , NS flag
-            // 20 bytes are 5(0101) words , reserved 0 0 0 , ns 0
-            //0101 0000 -> 80
-            response.RawPacket[32] = 80;
-
-            //flags are ack (16) and psh (8) = 24
-            if (response.DataLength < 1420 && Flag == 0)
-                Flag = 8;
-            response.RawPacket[33] = (byte) (16 + Flag);
-
-            //windows size 2 bytes
-            //set 32383 as defualt
-            var windowSize = BitConverter.GetBytes((ushort) 32383);
-            response.RawPacket[34] = windowSize[1];
-            response.RawPacket[35] = windowSize[0];
-
-            //checksum calculated out of this function 2bytes
-            //response.RawPacket[36] = 0;
-            //response.RawPacket[37] = 0;
-
-            //urgent pointer 2 bytes
-            response.RawPacket[38] = 0;
-            response.RawPacket[39] = 0;
-
-            //END OF TCP 
-
-            //END OF 40 Bytes headers 
-        }
-
-        private void SetKeepAliveFakeHeaders(Packet response, Packet request, ushort fakeRandom, uint fakeSeq, uint fakeAck, byte Flag)
         {
             //ALL WINDOWS versions uses Littile-Endian so reverse is done for Network Byte Order
 
@@ -666,17 +520,17 @@ namespace Sentro.Traffic
 
             //Source Ip  4 bytes
             //set to request dest ip
-            response.RawPacket[12] = request.RawPacket[12];
-            response.RawPacket[13] = request.RawPacket[13];
-            response.RawPacket[14] = request.RawPacket[14];
-            response.RawPacket[15] = request.RawPacket[15];
+            response.RawPacket[12] = request.RawPacket[16];
+            response.RawPacket[13] = request.RawPacket[17];
+            response.RawPacket[14] = request.RawPacket[18];
+            response.RawPacket[15] = request.RawPacket[19];
 
             //Destination Ip  4 bytes     
             //set to request src ip                   
-            response.RawPacket[16] = request.RawPacket[16];
-            response.RawPacket[17] = request.RawPacket[17];
-            response.RawPacket[18] = request.RawPacket[18];
-            response.RawPacket[19] = request.RawPacket[19];
+            response.RawPacket[16] = request.RawPacket[12];
+            response.RawPacket[17] = request.RawPacket[13];
+            response.RawPacket[18] = request.RawPacket[14];
+            response.RawPacket[19] = request.RawPacket[15];
 
             // END OF IP HEADERS
 
@@ -684,13 +538,13 @@ namespace Sentro.Traffic
 
             //Source Port 2 bytes                        
             //set to request dest port
-            response.RawPacket[20] = request.RawPacket[tcpStart + 0];
-            response.RawPacket[21] = request.RawPacket[tcpStart + 1];
+            response.RawPacket[20] = request.RawPacket[tcpStart + 2];
+            response.RawPacket[21] = request.RawPacket[tcpStart + 3];
 
             //Destination Port 2 bytes
             //set to request src port            
-            response.RawPacket[22] = request.RawPacket[tcpStart + 2];
-            response.RawPacket[23] = request.RawPacket[tcpStart + 3];
+            response.RawPacket[22] = request.RawPacket[tcpStart + 0];
+            response.RawPacket[23] = request.RawPacket[tcpStart + 1];
 
             //Sequence number 4 bytes
             //reverse
@@ -716,7 +570,7 @@ namespace Sentro.Traffic
             //flags are ack (16) and psh (8) = 24
             if (response.DataLength < 1420 && Flag == 0)
                 Flag = 8;
-            response.RawPacket[33] = (byte)(16 + Flag);
+            response.RawPacket[33] = (byte)(16 + Flag);            
 
             //windows size 2 bytes
             //set 32383 as defualt
@@ -735,7 +589,7 @@ namespace Sentro.Traffic
             //END OF TCP 
 
             //END OF 40 Bytes headers 
-        }
+        }    
 
         private void SetChecksum(Packet rawPacket)
         {
@@ -748,21 +602,21 @@ namespace Sentro.Traffic
                 ipchecksum = CalculateIpChecksum(rawPacket);
 
             rawPacket.RawPacket[10] = (byte)(ipchecksum >> 8);
-            rawPacket.RawPacket[11] = (byte) ipchecksum;
+            rawPacket.RawPacket[11] = (byte)ipchecksum;
 
             uint checksum = 0;
 
             var rawPacketLegnth = rawPacket.RawPacketLength;
-            
-            int i=20;
+
+            int i = 20;
             for (; i < rawPacketLegnth; i += 2)
                 checksum += ((uint)((rawPacket.RawPacket[i] << 8) | rawPacket.RawPacket[i + 1]));
 
-            if(i != rawPacketLegnth)
+            if (i != rawPacketLegnth)
                 checksum += ((uint)(rawPacket.RawPacket[i] << 8));
 
             for (i = 12; i < 20; i += 2)
-                checksum += ((uint)((rawPacket.RawPacket[i] << 8) | rawPacket.RawPacket[i+1]));
+                checksum += ((uint)((rawPacket.RawPacket[i] << 8) | rawPacket.RawPacket[i + 1]));
             checksum += 6;
             checksum += (rawPacket.RawPacketLength - 20);
 
@@ -773,7 +627,7 @@ namespace Sentro.Traffic
             checksum = ~checksum;
             var result = (ushort)checksum;
             rawPacket.RawPacket[36] = (byte)(result >> 8);
-            rawPacket.RawPacket[37] = (byte) result;
+            rawPacket.RawPacket[37] = (byte)result;
         }
 
         private ushort CalculateIpChecksum(Packet rawPacket)
@@ -796,14 +650,14 @@ namespace Sentro.Traffic
         }
 
         private void SendAsync(Packet rawPacket)
-        {            
+        {
             diversion.SendAsync(rawPacket.RawPacket, rawPacket.RawPacketLength, address, ref _sentLength);
-        }       
+        }
 
         private bool IsOut(Packet rawPacket)
         {
             var destPort = rawPacket.DestPort;
-            return (destPort == 80 || destPort == 443);
+            return (destPort == 80 || destPort == 8082);
         }
 
         private bool IsIn(Packet rawPacket)
@@ -811,37 +665,16 @@ namespace Sentro.Traffic
             return !IsOut(rawPacket);
         }
 
-        private void SyncroniseAckAndSeqNumbers(Packet rawPacket)
-        {
-            if(bytesRecivedFromUser == 0 || bytesSentToUser == 0)
-                return;
-
-            if (IsOut(rawPacket))
-            {
-                fileLogger.Debug($"{Tag} ack : {rawPacket.AckNumber} -= {bytesSentToUser} seq : {rawPacket.SeqNumber} -= {bytesRecivedFromUser}");
-                rawPacket.AckNumber -= bytesSentToUser;
-                rawPacket.SeqNumber -= bytesRecivedFromUser;
-            }
-            else
-            {
-                fileLogger.Debug($"{Tag} ack : {rawPacket.AckNumber} += {bytesRecivedFromUser} seq : {rawPacket.SeqNumber} += {bytesSentToUser}");
-                rawPacket.AckNumber += bytesRecivedFromUser;
-                rawPacket.SeqNumber += bytesSentToUser;
-            }
-            rawPacket.ClearChecksums();
-            var newipChecksum = CalculateIpChecksum(rawPacket);
-            SetChecksum(rawPacket, newipChecksum);
-        }
-
         [Flags]
         private enum State
         {
-            Closed          = 1 << 0,
-            Connected       = 1 << 1,
-            Transferring    = 1 << 2,
-            Caching         = 1 << 3,
-            SendingCache    = 1 << 4,
-            WaitResponse    = 1 << 5
+            Closed = 1 << 0,
+            Connected = 1 << 1,
+            Transferring = 1 << 2,
+            Caching = 1 << 3,
+            SendingCache = 1 << 4,
+            WaitResponse = 1 << 5,
+            VOIDSTATE = 1 << 6
         }
     }
 }

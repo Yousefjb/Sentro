@@ -97,7 +97,7 @@ namespace Sentro.Utilities
 
         public string MapToFilePath(string hash)
         {
-            string path = $"{_mainDirectory}\\{hash[0]}\\{hash.Substring(1, 2)}\\{hash.Substring(3)}";
+            string path = $"{_mainDirectory}\\{hash[0]}\\{hash.Substring(1, 2)}";
             Directory.CreateDirectory(path);
             return path + $"\\{ hash}";
         }

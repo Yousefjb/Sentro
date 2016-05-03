@@ -19,10 +19,18 @@ namespace Sentro.Cache
         {
             FileHierarchy = FileHierarchy.GetInstance();
             FileLogger = FileLogger.GetInstance();
-        }     
+        }
 
         public static bool IsCacheable(HttpResponseHeaders headers)
         {
+            if (headers.StatusCode != 200)
+                return false;
+            //if (headers.ContentType.Contains("javascript"))
+            //{
+            //    FileLogger.Debug(Tag,"no javascript caching please");
+            //    return false;
+            //}                                
+
             return true;
         }
 

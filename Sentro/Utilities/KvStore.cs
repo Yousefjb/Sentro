@@ -11,6 +11,7 @@ namespace Sentro.Utilities
     { 
         public static readonly Dictionary<string, string> IpMac;
         public static readonly ConcurrentDictionary<int, Connection> Connections;
+        public static readonly ConcurrentDictionary<int, ConnectionController> ConnectionControllers;
         public static readonly HashSet<string> TargetIps;
 
         static KvStore()
@@ -18,6 +19,7 @@ namespace Sentro.Utilities
             IpMac = new Dictionary<string, string>();
             TargetIps = new HashSet<string>();
             Connections = new ConcurrentDictionary<int, Connection>();
+            ConnectionControllers = new ConcurrentDictionary<int, ConnectionController>();
         }
     }
 }

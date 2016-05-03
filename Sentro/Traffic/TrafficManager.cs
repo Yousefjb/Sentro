@@ -31,12 +31,12 @@ namespace Sentro.Traffic
 
         private void Divert(DivertLayer layer)
         {
-            const string filter = "tcp.DstPort == 80 or tcp.SrcPort == 80";
+            const string filter = "tcp.DstPort == 80 or tcp.SrcPort == 80 or tcp.DstPort == 8082 or tcp.SrcPort == 8082";
             Diversion diversion;
 
             try
             {
-                diversion = Diversion.Open(filter, layer,1000, 0);
+                diversion = Diversion.Open(filter, layer,-1000, 0);
                 diversion.SetParam(DivertParam.QueueLength, 8192);
                 diversion.SetParam(DivertParam.QueueTime, 2048);
             }
@@ -52,11 +52,12 @@ namespace Sentro.Traffic
                 return;
             }
 
-            var buffer = new byte[2048];
-            var address = new Address();
+            
 
             while (_running)
             {
+                var buffer = new byte[2048];
+                var address = new Address();
                 uint receiveLength = 0;                
                 if (!diversion.Receive(buffer, address, ref receiveLength))
                 {
@@ -70,8 +71,12 @@ namespace Sentro.Traffic
                 if (!KvStore.Connections.ContainsKey(hash))
                     KvStore.Connections.TryAdd(hash, new Connection(diversion,address) {HashCode = hash});
 
+                //if (!KvStore.ConnectionControllers.ContainsKey(hash))
+                //    KvStore.ConnectionControllers.TryAdd(hash, new ConnectionController(packet,diversion));
+
                 //Controlling Logic maybe              
-                KvStore.Connections[hash].Add(packet,address);                
+                KvStore.Connections[hash].Add(packet,address);
+                //KvStore.ConnectionControllers[hash].Push(packet);
                 //Monitoring Logic maybe
             }
         }

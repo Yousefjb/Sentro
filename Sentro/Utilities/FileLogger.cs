@@ -29,7 +29,7 @@ namespace Sentro.Utilities
             directoryInfo?.Create();
             if (directoryInfo != null) directoryInfo.Attributes &= ~FileAttributes.ReadOnly;
             _file = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
-            writelock = new SemaphoreSlim(1,1);
+            writelock = new SemaphoreSlim(1, 1);
         }
 
         public void Debug(string tag, string message)
@@ -45,11 +45,11 @@ namespace Sentro.Utilities
 
         public void Debug(string message)
         {
-            writelock.Wait();            
-            var bytes = Encoding.ASCII.GetBytes($"{message}\n");
-            _file.Write(bytes, 0, bytes.Length);
-            _file.Flush();
-            writelock.Release();
+            //writelock.Wait();            
+            //var bytes = Encoding.ASCII.GetBytes($"{message}\n");
+            //_file.Write(bytes, 0, bytes.Length);
+            //_file.Flush();
+            //writelock.Release();
         }
 
         public void Info(string tag, string message)

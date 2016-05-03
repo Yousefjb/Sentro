@@ -99,8 +99,11 @@
     <Compile Include="ARP\IArpSpoofer.cs" />
     <Compile Include="Cache\CacheManager.cs" />
     <Compile Include="Cache\CacheResponse.cs" />
+    <Compile Include="Traffic\ConnectionController.cs" />
     <Compile Include="Traffic\HttpResponseHeaders.cs" />
+    <Compile Include="Traffic\OnewayConnection.cs" />
     <Compile Include="Traffic\Packet.cs" />
+    <Compile Include="Traffic\QuickPacketBuilder.cs" />
     <Compile Include="Utilities\FileHierarchy.cs" />
     <Compile Include="Traffic\Connection.cs" />
     <Compile Include="Traffic\TrafficManager.cs" />

@@ -19,7 +19,7 @@ namespace Sentro.Utilities
             url = removeDefaultDirectoryIndexes(url);
             url = removeTheFragment(url);
             url = removeDuplicateSlashes(url);
-            url = addWww(url);
+            //url = addWww(url);
             url = removeFeedburnerPart(url);
             return removeTrailingSlashAndEmptyQuery(url);
         }
